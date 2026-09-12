@@ -1,0 +1,1033 @@
+{
+  "projects": [
+    {
+      "slug": "igbo-speech-corpus",
+      "domain": "NLP · Speech",
+      "domains": [
+        "Language"
+      ],
+      "title": "Igbo Speech Corpus",
+      "status": "Baseline measured",
+      "tone": "ok",
+      "metric": "12,400",
+      "metricLabel": "utterances published · 28.4% WER baseline",
+      "result": "The first openly licensed Igbo ASR baseline anyone can build on.",
+      "lede": "An openly licensed corpus of Igbo speech collected across three dialect zones, with dialect and consent recorded as first-class metadata.",
+      "updated": "02 Sep 2026",
+      "problem": [
+        "Igbo is spoken by tens of millions of people and is close to absent from open speech datasets. Without audio, there is no baseline; without a baseline, there is nothing for anyone to improve on.",
+        "The datasets that do exist sample a single city, which produces models that fail the moment a speaker from another dialect zone opens their mouth."
+      ],
+      "quote": {
+        "text": "The machine understands Lagos Igbo. It does not understand my mother.",
+        "source": "Contributor · Umuahia, Apr 2026"
+      },
+      "steps": [
+        {
+          "n": "01",
+          "title": "Recruit where people already gather",
+          "body": "Church choirs, market unions and two secondary schools across three dialect zones — the places where fifty people will read sentences into a phone for an afternoon."
+        },
+        {
+          "n": "02",
+          "title": "Pay for the work",
+          "body": "A flat fee per completed session. Small, but real. The demographic spread of contributors changed the moment it was introduced."
+        },
+        {
+          "n": "03",
+          "title": "Track dialect as data",
+          "body": "Dialect zone, age band and recording conditions are fields in the corpus, not an afterthought in a readme."
+        },
+        {
+          "n": "04",
+          "title": "Publish the baseline with the data",
+          "body": "A 28.4% WER reference model ships alongside the clips, so the corpus gets used rather than only cited."
+        }
+      ],
+      "outcome": "12,400 validated clips from 214 contributors across three dialect zones, released under CC BY 4.0 with a 28.4% WER baseline model.",
+      "cannotClaim": "We cannot yet claim dialect-balanced coverage. Zone three is under-sampled at 18% of the corpus, and the next collection round targets exactly that gap.",
+      "metrics": [
+        {
+          "value": "12,400",
+          "label": "Validated clips",
+          "source": "Corpus release v1, Sep 2026"
+        },
+        {
+          "value": "214",
+          "label": "Contributors paid",
+          "source": "Payment ledger"
+        },
+        {
+          "value": "28.4%",
+          "label": "WER, baseline model",
+          "source": "Held-out split, 1,100 clips"
+        },
+        {
+          "value": "—",
+          "label": "Downstream deployments",
+          "source": "None measured yet",
+          "pending": true
+        }
+      ],
+      "facts": [
+        [
+          "Lead",
+          "Synthavia Lab · Language team"
+        ],
+        [
+          "Partners",
+          "None confirmed yet"
+        ],
+        [
+          "Started",
+          "Jan 2026"
+        ],
+        [
+          "Status",
+          "v1 published"
+        ],
+        [
+          "Licence",
+          "Data CC BY 4.0 · code Apache 2.0"
+        ]
+      ],
+      "photoHint": "Recording session — contributor with mic",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "cassava-disease-vision",
+      "domain": "AgriAI · Vision",
+      "domains": [
+        "Agriculture",
+        "Vision"
+      ],
+      "title": "Cassava Disease Vision",
+      "status": "In field test",
+      "tone": "cyan",
+      "metric": "91.2%",
+      "metricLabel": "top-1 held-out · 1.4s offline on ₦25k phones",
+      "result": "Deployed with 40 smallholder farms; harvest-loss data due Nov 2026.",
+      "lede": "An offline-first phone model that tells a smallholder farmer whether a cassava leaf shows mosaic disease, brown streak, or nothing at all — in under two seconds, with no network.",
+      "updated": "02 Sep 2026",
+      "problem": [
+        "Cassava is the staple of the South East, and mosaic disease can take a third of a harvest before a farmer is sure what they are looking at. Extension officers are thin on the ground: one officer can cover dozens of villages, and a diagnosis often arrives weeks late.",
+        "Existing crop-disease apps assume a recent Android phone and a working data connection. In the farms we visited around Abia, neither is a safe assumption."
+      ],
+      "quote": {
+        "text": "By the time I know the leaf is sick, my neighbour’s farm has it too.",
+        "source": "Field interview · Osisioma, Feb 2026"
+      },
+      "steps": [
+        {
+          "n": "01",
+          "title": "Collect where the problem is",
+          "body": "3,900 leaf photographs taken on farmers’ own phones across three LGAs — deliberately including bad light, motion blur and dirty lenses."
+        },
+        {
+          "n": "02",
+          "title": "Annotate with agronomists",
+          "body": "Two extension officers from the Abia ADP labelled every image; disagreements went to a third reviewer and stayed in the dataset as flagged cases."
+        },
+        {
+          "n": "03",
+          "title": "Train small, not big",
+          "body": "A MobileNetV3 backbone fine-tuned and quantised to int8 — 4.1 MB — so the whole thing ships inside the app and never calls a server."
+        },
+        {
+          "n": "04",
+          "title": "Test in the field, not the notebook",
+          "body": "Eight-week pilot with 40 farms, weekly check-ins, and a paper fallback card for every farmer in case the app got it wrong."
+        }
+      ],
+      "outcome": "The model reaches 91.2% top-1 accuracy on a held-out set of 2,140 field photographs, and runs in 1.4s on a ₦25,000 Android device with the network off. It is deployed with 40 farms across three Abia LGAs.",
+      "cannotClaim": "We do not yet have harvest-loss data. The claim “reduces crop loss” will only appear here after the November 2026 season comparison against the control farms — and it will carry the sample size.",
+      "metrics": [
+        {
+          "value": "91.2%",
+          "label": "Top-1 accuracy",
+          "source": "2,140 held-out photos"
+        },
+        {
+          "value": "1.4s",
+          "label": "Inference, offline",
+          "source": "Tecno Spark 8, no network"
+        },
+        {
+          "value": "40",
+          "label": "Farms in field test",
+          "source": "3 LGAs, Abia State"
+        },
+        {
+          "value": "—",
+          "label": "Harvest loss avoided",
+          "source": "Measures after Nov 2026",
+          "pending": true
+        }
+      ],
+      "facts": [
+        [
+          "Lead",
+          "Synthavia Lab · Vision team"
+        ],
+        [
+          "Partners",
+          "None confirmed yet"
+        ],
+        [
+          "Started",
+          "Feb 2026"
+        ],
+        [
+          "Status",
+          "Field test, 8 weeks in"
+        ],
+        [
+          "Model",
+          "MobileNetV3, int8, 4.1 MB"
+        ],
+        [
+          "Licence",
+          "Apache 2.0 · data CC BY 4.0"
+        ]
+      ],
+      "photoHint": "Farmer holding phone over cassava leaf",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "sme-copilot",
+      "domain": "Enterprise · LLM",
+      "domains": [
+        "Enterprise"
+      ],
+      "title": "SME Copilot",
+      "status": "Pilot · no outcomes yet",
+      "tone": "warm",
+      "metric": "—",
+      "metricLabel": "results publish after the 12-shop pilot",
+      "result": "Bookkeeping and pricing copilot built for informal-commerce workflows.",
+      "lede": "A bookkeeping and pricing assistant shaped around how Aba traders actually record a day of sales — in a notebook, in Pidgin, after closing.",
+      "updated": "28 Aug 2026",
+      "problem": [
+        "Off-the-shelf accounting software assumes invoices, bank rails and a single currency of record. Informal commerce runs on cash, credit given by memory, and prices that move with the market twice a week.",
+        "A tool that cannot read a handwritten day-book is a tool that will be abandoned in week two."
+      ],
+      "quote": {
+        "text": "I know who owes me. I just cannot prove it to a bank.",
+        "source": "Trader interview · Ariaria, Jun 2026"
+      },
+      "steps": [
+        {
+          "n": "01",
+          "title": "Sit in twelve shops",
+          "body": "Two weeks of observation before a line of code: what gets written down, when, by whom, and what never gets written down at all."
+        },
+        {
+          "n": "02",
+          "title": "Build for the day-book",
+          "body": "Photograph a page, get a structured ledger back, correct it by voice in English or Pidgin."
+        },
+        {
+          "n": "03",
+          "title": "Keep the numbers on the device",
+          "body": "Takings are sensitive. Extraction runs locally; only anonymised price signals sync."
+        },
+        {
+          "n": "04",
+          "title": "Pilot before claiming",
+          "body": "Twelve shops, twelve weeks, with a named owner at each. No metric is published until that ends."
+        }
+      ],
+      "outcome": "The pilot is running. There is no outcome to report, and this section stays empty until there is.",
+      "cannotClaim": "Nothing yet. No accuracy, adoption or revenue figure exists for this project, and none will appear here before the twelve-shop pilot closes in December 2026.",
+      "metrics": [
+        {
+          "value": "12",
+          "label": "Shops in pilot",
+          "source": "Pilot register, Aug 2026"
+        },
+        {
+          "value": "—",
+          "label": "Ledger accuracy",
+          "source": "Measures at pilot close",
+          "pending": true
+        },
+        {
+          "value": "—",
+          "label": "Weekly active shops",
+          "source": "Measures at pilot close",
+          "pending": true
+        },
+        {
+          "value": "—",
+          "label": "Time saved per week",
+          "source": "Measures at pilot close",
+          "pending": true
+        }
+      ],
+      "facts": [
+        [
+          "Lead",
+          "Synthavia Lab · Enterprise"
+        ],
+        [
+          "Partners",
+          "None confirmed yet"
+        ],
+        [
+          "Started",
+          "Jun 2026"
+        ],
+        [
+          "Status",
+          "Pilot, 12 shops"
+        ],
+        [
+          "Licence",
+          "Not yet decided"
+        ]
+      ],
+      "photoHint": "Aba trader at a laptop, shop interior",
+      "status_publish": "Published"
+    }
+  ],
+  "posts": [
+    {
+      "slug": "igbo-corpus-collection",
+      "category": "Datasets",
+      "date": "02 SEP 2026",
+      "read": "9 MIN",
+      "featured": true,
+      "title": "What it actually takes to collect 12,400 Igbo speech clips",
+      "dek": "Recruiting speakers across three dialect zones, paying contributors fairly, and the ten decisions that shaped the corpus more than any model choice did.",
+      "author": "Synthavia Lab · Language team",
+      "initials": "SL",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Igbo",
+        "Speech data",
+        "Open datasets",
+        "Field work"
+      ],
+      "project": "igbo-speech-corpus",
+      "projectNote": "12,400 clips, CC BY 4.0, with dialect and consent metadata.",
+      "body": [
+        {
+          "h": "Why we started with a spreadsheet",
+          "p": [
+            "Every conversation about African-language AI starts with models. Ours started with a spreadsheet of church choirs, market unions and two secondary schools — the places where you can actually find fifty people willing to read sentences into a phone for an afternoon.",
+            "Igbo has real dialect variation, and a corpus that only samples Aba will produce a model that fails in Nsukka. We split collection across three zones and tracked dialect as a first-class field in the metadata rather than an afterthought."
+          ]
+        },
+        {
+          "h": "Paying people is a design decision",
+          "p": [
+            "Unpaid data collection selects for people with spare time, which is its own bias. We budgeted a flat fee per completed session — small, but real — and the demographic spread of contributors changed immediately."
+          ],
+          "quote": "A dataset is a record of who you could reach. Widen the reach before you widen the model."
+        },
+        {
+          "h": "What we would do differently",
+          "list": [
+            "Record consent in the contributor’s own language, on the same device, before the first clip.",
+            "Validate audio quality on-device instead of discovering clipped waveforms two weeks later.",
+            "Publish the baseline model at the same time as the data, so the dataset gets used and not just cited."
+          ]
+        }
+      ],
+      "status_publish": "Published"
+    },
+    {
+      "slug": "4mb-model",
+      "category": "Build notes",
+      "date": "18 AUG 2026",
+      "read": "6 MIN",
+      "title": "Shipping a 4 MB crop-disease model to ₦25,000 phones",
+      "dek": "Quantisation, and the accuracy we were willing to trade for working offline.",
+      "author": "Synthavia Lab · Vision team",
+      "initials": "SV",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Vision",
+        "On-device",
+        "Quantisation"
+      ],
+      "project": "cassava-disease-vision",
+      "projectNote": "MobileNetV3 at int8, 4.1 MB, 1.4s on a Tecno Spark 8.",
+      "body": [
+        {
+          "h": "The constraint came first",
+          "p": [
+            "We did not pick a model and then find a phone. We picked the cheapest Android device in common use across the farms we work with, decided the app had to work with the network off, and let those two facts eliminate most of the architecture search.",
+            "That inverts the usual order, and it is the single reason the thing runs at all."
+          ]
+        },
+        {
+          "h": "What int8 cost us",
+          "p": [
+            "Post-training quantisation to int8 took the model from 16.8 MB to 4.1 MB and cut inference from 5.2s to 1.4s. Top-1 accuracy fell by 1.1 points."
+          ],
+          "quote": "A model that is two points better and never opens is zero points better."
+        },
+        {
+          "h": "The fallback matters more than the metric",
+          "list": [
+            "Every farmer in the pilot has a paper card with the three diseases and what they look like.",
+            "Low-confidence predictions say so, in plain language, instead of guessing.",
+            "The app never claims certainty it does not have."
+          ]
+        }
+      ],
+      "status_publish": "Published"
+    },
+    {
+      "slug": "community-lessons",
+      "category": "Community",
+      "date": "05 AUG 2026",
+      "read": "4 MIN",
+      "title": "What 1,240 members taught us about running a technical community",
+      "dek": "Cohorts beat courses, WhatsApp beats Slack, and attendance is not engagement.",
+      "author": "Synthavia Core",
+      "initials": "SC",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Community",
+        "Cohorts",
+        "Operations"
+      ],
+      "body": [
+        {
+          "h": "Cohorts beat courses",
+          "p": [
+            "Self-paced material has near-perfect availability and near-zero completion. A cohort with a start date, a named facilitator and eleven other people who will notice you are missing completes at a rate that makes the extra effort obviously worth it."
+          ]
+        },
+        {
+          "h": "WhatsApp beats Slack",
+          "p": [
+            "We ran both for four months. The Slack workspace had better threading, search and integrations. The WhatsApp group had the members."
+          ],
+          "quote": "Meet people in the app they already have open. Everything else is a tax you are asking them to pay."
+        },
+        {
+          "h": "Attendance is not engagement",
+          "list": [
+            "Count commits, pull requests and shipped artefacts — not seats filled.",
+            "Ask who came back for the second session, not how many came to the first.",
+            "Publish the numbers you would not enjoy publishing."
+          ]
+        }
+      ],
+      "status_publish": "Published"
+    },
+    {
+      "slug": "no-wrapper",
+      "category": "Opinion",
+      "date": "21 JUL 2026",
+      "read": "7 MIN",
+      "title": "African AI does not need another wrapper",
+      "dek": "Where the defensible work is: data, deployment constraints, and distribution.",
+      "author": "Synthavia AI",
+      "initials": "SA",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Opinion",
+        "Strategy",
+        "Ecosystem"
+      ],
+      "body": [
+        {
+          "h": "The thin layer is not the opportunity",
+          "p": [
+            "A chat interface over someone else’s model is a weekend of work and a permanent dependency. It is also the most common thing being funded and celebrated on this continent right now.",
+            "The defensible positions are elsewhere: in data nobody else has collected, in deployment constraints nobody else is designing for, and in distribution nobody else can reach."
+          ]
+        },
+        {
+          "h": "Three places the work is real",
+          "p": [
+            "Data: an Igbo speech corpus cannot be scraped into existence. Constraints: a model that runs offline on a ₦25,000 phone is an engineering result, not a prompt. Distribution: reaching forty farms means forty relationships."
+          ],
+          "quote": "Build the thing that gets harder to copy the longer you do it."
+        },
+        {
+          "h": "What this means for us",
+          "list": [
+            "Publish datasets openly, because the ecosystem needs a floor to stand on.",
+            "Measure on the cheapest device, not the best one.",
+            "Say what we cannot claim yet, so the claims we do make are worth something."
+          ]
+        }
+      ],
+      "status_publish": "Published"
+    },
+    {
+      "slug": "cohort-03-retro",
+      "category": "Community",
+      "date": "",
+      "read": "5 MIN",
+      "title": "Cohort 03 retrospective",
+      "dek": "What worked, what did not, and what we are changing for cohort 04.",
+      "author": "Synthavia Core",
+      "initials": "SC",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Community",
+        "Cohorts"
+      ],
+      "body": [],
+      "status_publish": "In review"
+    },
+    {
+      "slug": "asr-dialects",
+      "category": "Datasets",
+      "date": "",
+      "read": "8 MIN",
+      "title": "Evaluating ASR on dialect splits",
+      "dek": "Why a single WER number hides the thing you actually need to know.",
+      "author": "Synthavia Lab · Language team",
+      "initials": "SL",
+      "place": "Aba, Nigeria",
+      "tags": [
+        "Igbo",
+        "Speech data"
+      ],
+      "body": [],
+      "status_publish": "Draft"
+    }
+  ],
+  "events": [
+    {
+      "slug": "aiot-2026",
+      "badge": "Past · recap live",
+      "title": "AI of Things 2026",
+      "subtitle": "AI for Our Future",
+      "date": "15–16 Aug 2026",
+      "startsAt": "2026-08-15",
+      "venue": "Enyimba Hall, Aba, Abia State",
+      "format": "In-person + global livestream",
+      "blurb": "Second edition of the flagship summit: hands-on Gen-AI labs, a mini-hackathon, founder and policy tracks, and a demo day.",
+      "chips": [
+        "Flagship",
+        "2 days",
+        "4 tracks",
+        "Recordings"
+      ],
+      "hasGallery": true,
+      "photoHint": "AI of Things 2026 — crowd or stage",
+      "agenda": [
+        {
+          "time": "Day 1 · 09:30",
+          "title": "Opening keynote",
+          "detail": "The African AI landscape in 2026 — where value is actually being created."
+        },
+        {
+          "time": "Day 1 · 11:00",
+          "title": "Hands-on lab: LLM tooling",
+          "detail": "Prompting, retrieval and evaluation with local-language data."
+        },
+        {
+          "time": "Day 1 · 14:00",
+          "title": "Hands-on lab: vision on cheap devices",
+          "detail": "Training and quantising a crop-disease classifier for offline Android."
+        },
+        {
+          "time": "Day 1 · 16:30",
+          "title": "Mini-hackathon kickoff",
+          "detail": "Teams form around four community briefs."
+        },
+        {
+          "time": "Day 2 · 10:00",
+          "title": "Founder and policy tracks",
+          "detail": "Parallel tracks: building an AI business in Nigeria, or regulation and data rights."
+        },
+        {
+          "time": "Day 2 · 15:00",
+          "title": "Demo day, awards, close",
+          "detail": "Hackathon demos judged live, then the closing celebration."
+        }
+      ],
+      "livestream": [
+        [
+          "Platform",
+          "YouTube Live + X Spaces"
+        ],
+        [
+          "Access",
+          "Free, registration required"
+        ],
+        [
+          "Captions",
+          "English, Pidgin"
+        ],
+        [
+          "Recordings",
+          "Published 5 days after"
+        ]
+      ],
+      "travel": "Enyimba Hall is 10 minutes from Aba town centre. Shuttle pickups ran from the Ariaria and Ogbor Hill stops.",
+      "speakers": [
+        {
+          "track": "Keynote · industry",
+          "role": "Role · organisation",
+          "session": "Session title goes here — 40 min keynote"
+        },
+        {
+          "track": "Keynote · research",
+          "role": "Role · institution",
+          "session": "Session title goes here — 40 min keynote"
+        },
+        {
+          "track": "Founder track",
+          "role": "Founder · company",
+          "session": "Session title goes here — 30 min talk"
+        },
+        {
+          "track": "Policy track",
+          "role": "Role · agency",
+          "session": "Session title goes here — 30 min panel"
+        }
+      ],
+      "status_publish": "Published",
+      "gallery": [
+        {
+          "src": "/media/events/aiot-2026-group.jpg",
+          "caption": "The room, AI of Things 2026",
+          "w": 1800,
+          "h": 1012
+        },
+        {
+          "src": "/media/events/aiot-2026-group-wide.jpg",
+          "caption": "Cohort and facilitators, Enyimba Hall",
+          "w": 1800,
+          "h": 1012
+        },
+        {
+          "src": "/media/events/aiot-2026-guests.jpg",
+          "caption": "Guests at AI of Things 2026",
+          "w": 1080,
+          "h": 1920
+        },
+        {
+          "src": "/media/events/aiot-2026-panel.jpg",
+          "caption": "After the sessions",
+          "w": 720,
+          "h": 1280
+        },
+        {
+          "src": "/media/events/aiot-2026-team.jpg",
+          "caption": "Organisers and attendees",
+          "w": 1080,
+          "h": 1920
+        },
+        {
+          "src": "/media/events/aiot-2026-pair.jpg",
+          "caption": "In the hall",
+          "w": 720,
+          "h": 1280
+        },
+        {
+          "src": "/media/events/aiot-2026-welcome.jpg",
+          "caption": "Welcoming attendees",
+          "w": 1080,
+          "h": 1920
+        },
+        {
+          "src": "/media/events/aiot-2026-arrival.jpg",
+          "caption": "Arrivals",
+          "w": 720,
+          "h": 1280
+        }
+      ],
+      "photo": "/media/events/aiot-2026-group.jpg"
+    },
+    {
+      "slug": "aiot-2025",
+      "badge": "Past",
+      "title": "AI of Things 2025",
+      "subtitle": "The inaugural edition",
+      "date": "23 Nov 2025",
+      "startsAt": "2025-11-23",
+      "venue": "Aba, Abia State",
+      "format": "In-person",
+      "blurb": "The first gathering: a one-day programme of talks and workshops that started the Abia AI conversation.",
+      "chips": [
+        "Flagship",
+        "1 day",
+        "Photos pending"
+      ],
+      "hasGallery": false,
+      "photoHint": "AI of Things 2025 — any photo you have",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "meetup-11",
+      "badge": "Past · monthly",
+      "title": "Core Meetup #11",
+      "subtitle": "Small models, small devices",
+      "date": "29 Aug 2026",
+      "startsAt": "2026-08-29",
+      "venue": "Hub One, Aba",
+      "format": "In-person",
+      "blurb": "Community night on quantisation and on-device inference, with a live demo of the cassava vision model.",
+      "chips": [
+        "Meetup",
+        "2 hours",
+        "Slides"
+      ],
+      "hasGallery": false,
+      "photoHint": "Meetup room, people at tables",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "jam-igbo-jul26",
+      "badge": "Past · study jam",
+      "title": "Igbo NLP Study Jam",
+      "subtitle": "Annotation sprint",
+      "date": "12 Jul 2026",
+      "startsAt": "2026-07-12",
+      "venue": "Online",
+      "format": "Virtual",
+      "blurb": "Four-hour jam annotating and validating Igbo speech clips for the open corpus. 61 contributors joined.",
+      "chips": [
+        "Open source",
+        "Virtual",
+        "Dataset"
+      ],
+      "hasGallery": false,
+      "photoHint": "Screenshot of the annotation tool",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "aiot-2027",
+      "badge": "Upcoming",
+      "title": "AI of Things 2027",
+      "subtitle": "Theme to confirm",
+      "date": "Date not set",
+      "startsAt": "",
+      "venue": "Venue pending",
+      "format": "To confirm",
+      "blurb": "Third edition of the flagship summit. Nothing is announced until the venue is booked.",
+      "chips": [
+        "Flagship"
+      ],
+      "hasGallery": false,
+      "photoHint": "AI of Things 2027",
+      "status_publish": "Draft"
+    },
+    {
+      "slug": "meetup-12",
+      "badge": "Upcoming · monthly",
+      "title": "Core Meetup #12",
+      "subtitle": "Topic to confirm",
+      "date": "Date not set",
+      "startsAt": "",
+      "venue": "Hub One, Aba",
+      "format": "In-person",
+      "blurb": "Monthly community night. Date goes live once the room is confirmed.",
+      "chips": [
+        "Meetup"
+      ],
+      "hasGallery": false,
+      "photoHint": "Meetup room",
+      "status_publish": "Draft"
+    }
+  ],
+  "tiers": [
+    {
+      "tag": "Tier 05",
+      "name": "Founding",
+      "ngn": "₦25m+",
+      "usd": "$16,000+",
+      "featured": true,
+      "who": "One or two organisations that put their name on the whole ecosystem for three years.",
+      "perks": [
+        "Naming rights on a program or lab",
+        "Top billing at AI of Things",
+        "Two Fellowship seats reserved",
+        "Quarterly strategy session with the team",
+        "Co-authored research option"
+      ]
+    },
+    {
+      "tag": "Tier 04",
+      "name": "Platinum",
+      "ngn": "₦12m",
+      "usd": "$7,500",
+      "who": "Corporates and global AI orgs building a talent pipeline in Eastern Nigeria.",
+      "perks": [
+        "Headline sponsor slot at the summit",
+        "Keynote or masterclass slot",
+        "One Fellowship seat",
+        "Priority access to graduating cohorts"
+      ]
+    },
+    {
+      "tag": "Tier 03",
+      "name": "Gold",
+      "ngn": "₦6m",
+      "usd": "$3,800",
+      "who": "Companies backing a specific cohort or a Lab project for a year.",
+      "perks": [
+        "Cohort or project sponsorship",
+        "Logo on event and program pages",
+        "Mentor slots for your engineers",
+        "Recruitment access to alumni"
+      ]
+    },
+    {
+      "tag": "Tier 02",
+      "name": "Silver",
+      "ngn": "₦2.5m",
+      "usd": "$1,600",
+      "who": "Startups and SMEs supporting workshops and meetups.",
+      "perks": [
+        "Workshop series sponsorship",
+        "Logo on the partners page",
+        "Two summit tickets",
+        "Job posts to the community"
+      ]
+    },
+    {
+      "tag": "Tier 01",
+      "name": "Community",
+      "ngn": "In kind",
+      "usd": "In kind",
+      "who": "Venues, compute credits, mentor hours, equipment, food for a meetup.",
+      "perks": [
+        "Named as a community supporter",
+        "Listed on the event you support",
+        "Invitation to demo days"
+      ]
+    }
+  ],
+  "spend": [
+    {
+      "pct": "45%",
+      "label": "Program delivery",
+      "note": "Stipends, mentors, training materials and travel for cohort members."
+    },
+    {
+      "pct": "25%",
+      "label": "Lab research",
+      "note": "Data collection in the field, annotation work, compute and devices."
+    },
+    {
+      "pct": "20%",
+      "label": "Events",
+      "note": "Venue, livestream production, and free student tickets."
+    },
+    {
+      "pct": "10%",
+      "label": "Operations",
+      "note": "Two part-time staff, tooling, accounting and audit."
+    }
+  ],
+  "orgTypes": [
+    "University / research institute",
+    "Government / agency",
+    "Startup / SME",
+    "Corporate / enterprise",
+    "NGO / foundation",
+    "Global AI organisation"
+  ],
+  "supportKinds": [
+    "Cash sponsorship",
+    "Compute credits",
+    "Venue / space",
+    "Mentor hours",
+    "Data access",
+    "Hiring pipeline",
+    "Research collaboration"
+  ],
+  "partners": [
+    {
+      "slug": "university-withheld",
+      "name": "University (name withheld)",
+      "note": "in talks · MOU drafted",
+      "tier": "Gold",
+      "owner": "Partnerships",
+      "agreement": "Unsigned"
+    },
+    {
+      "slug": "global-ai-withheld",
+      "name": "Global AI org (name withheld)",
+      "note": "in talks · intro call done",
+      "tier": "Platinum",
+      "owner": "Partnerships",
+      "agreement": "Unsigned"
+    },
+    {
+      "slug": "abia-sme",
+      "name": "Abia-based SME",
+      "note": "in kind · venue offer",
+      "tier": "Community",
+      "owner": "Community team",
+      "agreement": "Verbal"
+    }
+  ],
+  "resources": [
+    {
+      "slug": "cassava-one-pager",
+      "title": "Cassava Disease Vision — one-pager",
+      "kind": "PDF",
+      "detail": "Problem, method, metrics and contact on a single printable page.",
+      "url": "",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "igbo-corpus-card",
+      "title": "Igbo Speech Corpus — dataset card",
+      "kind": "Dataset",
+      "detail": "12,400 clips, CC BY 4.0, with dialect and consent metadata.",
+      "url": "",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "quantisation-notebook",
+      "title": "Quantising a vision model for cheap Android",
+      "kind": "Notebook",
+      "detail": "The workshop notebook from Core Meetup #11.",
+      "url": "",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "fieldwork-consent-kit",
+      "title": "Field data consent kit",
+      "kind": "Template",
+      "detail": "The consent script and forms we use when collecting data in the field, in English and Igbo.",
+      "url": "",
+      "status_publish": "Draft"
+    }
+  ],
+  "testimonials": [],
+  "programs": [
+    {
+      "slug": "ai-fellowship",
+      "kicker": "Flagship",
+      "title": "AI Fellowship",
+      "state": "Applications open",
+      "tone": "ok",
+      "body": "Six months, full-time, embedded in a Lab project. You leave with published work, a trained model, and a network that answers your messages.",
+      "dur": "6 months",
+      "size": "12",
+      "mode": "Hybrid, Aba",
+      "cost": "Free + stipend",
+      "dates": "Applications close 31 Oct 2026 · starts Jan 2027",
+      "curriculum": [
+        "Research methods and reading groups",
+        "Model training, evaluation, and error analysis",
+        "Ship one artefact: dataset, model, or tool",
+        "Write up and present at AI of Things"
+      ],
+      "eligibility": [
+        "Some coding experience; degree not required",
+        "Based in or able to travel to Abia monthly",
+        "Committed for the full six months"
+      ],
+      "action": "Apply now",
+      "featured": true,
+      "status_publish": "Published"
+    },
+    {
+      "slug": "internship",
+      "kicker": "Early career",
+      "title": "Internship Program",
+      "state": "Opens Nov 2026",
+      "tone": "cyan",
+      "body": "Twelve weeks inside a Lab team or a partner organisation, with a named mentor and a scoped piece of work you actually finish.",
+      "dur": "12 weeks",
+      "size": "8",
+      "mode": "Hybrid",
+      "cost": "Free + transport",
+      "dates": "Applications open 1 Nov 2026 · starts Feb 2027",
+      "curriculum": [
+        "Onboarding into a live project in week one",
+        "Weekly mentor review and code reading",
+        "A scoped deliverable with your name on it",
+        "Interview and CV clinic before you leave"
+      ],
+      "eligibility": [
+        "Students and recent graduates",
+        "Basic Python or data skills",
+        "No prior AI experience needed"
+      ],
+      "action": "Join the waitlist",
+      "featured": false,
+      "status_publish": "Published"
+    },
+    {
+      "slug": "accelerator",
+      "kicker": "Future",
+      "title": "AI Accelerator",
+      "state": "In design",
+      "tone": "warm",
+      "body": "For African AI-first startups with a working prototype: technical mentorship, compute credits, and introductions that matter. Cohort one is being designed with partners now.",
+      "dur": "16 weeks",
+      "size": "6 teams",
+      "mode": "Hybrid",
+      "cost": "Equity-free",
+      "dates": "Cohort one targeted for mid-2027",
+      "curriculum": [
+        "Technical due diligence and architecture review",
+        "Compute credits and infrastructure support",
+        "Go-to-market for Nigerian and pan-African buyers",
+        "Demo day to investors and partners"
+      ],
+      "eligibility": [
+        "Registered African company",
+        "Working prototype with users",
+        "AI is core, not a feature"
+      ],
+      "action": "Get notified",
+      "featured": false,
+      "status_publish": "Published"
+    }
+  ],
+  "faqs": [
+    {
+      "q": "Is joining Core free?",
+      "a": "Yes. Workshops, meetups and the resource library are free and will stay free."
+    },
+    {
+      "q": "Do I need a degree to apply?",
+      "a": "No. We look at what you have built and how you think, not where you studied."
+    },
+    {
+      "q": "Can I visit the space?",
+      "a": "Come to a meetup — that is the easiest way in. Drop-ins outside events need a heads-up."
+    }
+  ],
+  "topics": [
+    {
+      "label": "Join the community",
+      "sla": "2 working days",
+      "to": "the community team"
+    },
+    {
+      "label": "Partnership / sponsorship",
+      "sla": "5 working days",
+      "to": "the partnerships lead"
+    },
+    {
+      "label": "Programs & applications",
+      "sla": "3 working days",
+      "to": "the programs desk"
+    },
+    {
+      "label": "Research collaboration",
+      "sla": "5 working days",
+      "to": "Synthavia Lab"
+    },
+    {
+      "label": "Speaking / press",
+      "sla": "3 working days",
+      "to": "comms"
+    },
+    {
+      "label": "Something else",
+      "sla": "5 working days",
+      "to": "the general inbox"
+    }
+  ],
+  "team": []
+}

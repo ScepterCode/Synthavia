@@ -1,0 +1,20 @@
+{
+  "name": "synthavia-ai-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Synthavia AI \u2014 website, admin and content API.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "backup": "node -e \"console.log(require('./db.js').backup())\"",
+    "brand": "python tools/make-brand-assets.py",
+    "dev": "node --env-file-if-exists=.env server.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "pg": "^8.23.0"
+  }
+}

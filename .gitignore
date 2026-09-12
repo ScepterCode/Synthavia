@@ -1,0 +1,15 @@
+# Secrets — never commit. .env.example is the shareable template.
+.env
+
+# Runtime state: the database, its backups, and anything uploaded through the admin.
+data/
+node_modules/
+
+# Photos uploaded at runtime are not part of the repo. Deliberate site imagery
+# (the event gallery) lives in public/media/events/ and ships with the deploy.
+public/media/*
+!public/media/events/
+
+# Design sources, kept out of the app repo.
+*.zip
+Synthavia-Redesign.pdf

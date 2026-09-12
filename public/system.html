@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Synthavia AI design system — tokens, type, components and the rules the site is built on." />
+    <title>Design system — Synthavia AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;text=%E2%82%A6&amp;display=swap" rel="stylesheet" /><link rel="icon" href="logo-32.png" sizes="32x32" /><link rel="apple-touch-icon" href="logo-192.png" /><link rel="stylesheet" href="styles.css" /><link rel="stylesheet" href="pages.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a href="index.html" class="brand" aria-label="Synthavia AI home"><img class="brand-mark" src="logo-64.png" alt="" width="26" height="26" /><span>SYNTHAVIA<span class="brand-ai">.AI</span></span></a>
+      <nav aria-label="Primary navigation">
+        <a href="view.html?page=team" data-i18n="nav.about">About</a><a href="view.html?page=core" data-i18n="nav.core">Core</a><a href="view.html?page=lab" data-i18n="nav.lab">Lab</a><a href="view.html?page=programs" data-i18n="nav.programs">Programs</a><a href="view.html?page=events" data-i18n="nav.events">Events</a><a href="view.html?page=blog" data-i18n="nav.blog">Blog</a><a href="view.html?page=partners" data-i18n="nav.partners">Partners</a><a href="view.html?page=contact" data-i18n="nav.contact">Contact</a>
+      </nav>
+      <div class="header-actions">
+        <button class="text-button" id="languageToggle" data-lang-cycle aria-label="Switch language"><span class="lang-label">EN</span> <span>⌄</span></button>
+        <button class="theme-toggle" id="themeToggle" data-theme-cycle aria-label="Switch to light theme"><span class="theme-icon">◐</span></button>
+        <a class="button button-small" href="flow.html?type=join"><span data-i18n="cta.join">Join Core</span> <span>↗</span></a>
+        <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navSheet"><span></span><span></span><span></span></button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="page-hero dot-grid">
+        <p class="eyebrow">FOUNDATIONS</p>
+        <h1>The Synthavia system,<br /><em>in one page.</em></h1>
+        <p>Everything the pages are built from: tokens for both themes, the type scale, components and their states. Toggle the theme in the header — every value below is a variable, so the whole system flips.</p>
+        <span class="page-index">/10</span>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">01 — LOGOMARK &amp; LOCKUP</p>
+        <div class="ds-grid">
+          <article class="ds-card"><div class="ds-demo"><img class="brand-mark ds-mark" src="logo-192.png" alt="Synthavia AI mark" /></div><p><b>Primary mark</b> · transparent PNG at 512/192/64/32. Keeps its own glow, so it needs no tile behind it</p></article>
+          <article class="ds-card"><div class="ds-demo"><span class="brand" style="font-size:19px"><img class="brand-mark" src="logo-64.png" alt="" width="26" height="26" /><span>SYNTHAVIA<span class="brand-ai">.AI</span></span></span></div><p><b>Horizontal lockup</b> · “.AI” always takes the cyan</p></article>
+          <article class="ds-card"><div class="ds-demo"><span class="brand ds-mono-mark" style="font-size:19px"><img class="brand-mark" src="logo-64.png" alt="" width="26" height="26" /><span>SYNTHAVIA<span class="brand-ai">.AI</span></span></span></div><p><b>Mono fallback</b> · desaturated for print, embroidery and single-colour partners</p></article>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">02 — COLOUR TOKENS</p>
+        <h2>Two themes,<br />one set of names.</h2>
+        <div class="swatch-grid" id="swatches"></div>
+        <div class="ds-notes">
+          <article><p class="tag">CONTRAST RULES</p><p>Body text is always <code>--ink</code> or <code>--ink-2</code> on <code>--bg</code>. The gradient is for display type at 28px and up, never for paragraph copy.</p></article>
+          <article><p class="tag">TEXTURE RECIPES</p><p>Dot grid: <code>radial-gradient(...) / 26px</code>. Glow: one blurred radial blob per section, never two competing.</p></article>
+          <article><p class="tag">AMBER MEANS PENDING</p><p><code>--amber</code> is reserved for unverified figures, draft states and honest empty states. It is never decorative.</p></article>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">03 — TYPE SCALE</p>
+        <div class="type-scale">
+          <div><span>H1 · Syne 700 · clamp(48–106px)</span><h1 style="margin:0">Building Africa's AI future</h1></div>
+          <div><span>H2 · Syne 700 · clamp(39–82px)</span><h2 style="margin:0">Research with receipts</h2></div>
+          <div><span>H3 · Syne 700 · clamp(26–43px)</span><h3 style="margin:0">The community engine</h3></div>
+          <div><span>BODY · Manrope 400 · 15px/1.55</span><p style="margin:0;max-width:60ch">We train the talent, run the research, and ship AI that works for African realities.</p></div>
+          <div><span>EYEBROW · DM Mono 400 · 11px</span><p class="eyebrow" style="margin:0">01 — THE ECOSYSTEM</p></div>
+          <div><span>NAIRA · Space Grotesk, scaled 0.73em in display type</span><h3 style="margin:0">₦25m+ · ₦2.5m · ₦25,000</h3></div>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">04 — BUTTONS &amp; STATES</p>
+        <div class="ds-row">
+          <button class="button">Primary <span>→</span></button>
+          <button class="button button-quiet">Secondary <span>↗</span></button>
+          <button class="button button-small">Small <span>↗</span></button>
+          <button class="button" disabled>Disabled</button>
+          <a class="arrow-link" href="#main">Arrow link <span>→</span></a>
+        </div>
+        <div class="ds-row">
+          <span class="chip" aria-pressed="false">Filter chip</span>
+          <span class="chip" aria-pressed="true">Selected</span>
+          <span class="chip static">Static tag</span>
+          <span class="status-line"><span class="dot tone-ok"></span>Signed off</span>
+          <span class="status-line"><span class="dot tone-warm"></span>Pending</span>
+          <span class="status-line"><span class="dot tone-cyan"></span>In review</span>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">05 — SURFACES &amp; PATTERNS</p>
+        <div class="ds-grid">
+          <article class="ds-card"><div class="fact-card"><p class="tag">CARD · STANDARD</p><p>1px <code>--line</code> border on <code>--surface</code>. The default container.</p></div></article>
+          <article class="ds-card"><div class="fact-card accent"><p class="tag">CARD · ACCENT</p><p>Gradient wash. One element per screen, no more.</p></div></article>
+          <article class="ds-card"><div class="photo-slot" style="aspect-ratio:16/9"><span>◇</span><p>Dashed means “nothing here yet, on purpose”</p><small>IMAGE SLOT · AWAITING ASSET</small></div></article>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">06 — THE HONESTY RULES</p>
+        <h2>The system's<br /><em>real constraint.</em></h2>
+        <div class="ds-notes">
+          <article><p class="tag">NO UNSIGNED NUMBER</p><p>A figure without an owner's sign-off is never sent to the browser. It renders as an em dash with its source and “audit in progress”.</p></article>
+          <article><p class="tag">NO COUNTDOWN WITHOUT A DATE</p><p>The countdown runs only when a published event has a start date in the future. Otherwise the page is a recap.</p></article>
+          <article><p class="tag">NO LOGO BEFORE INK</p><p>A partner appears only when its agreement is marked countersigned in the admin. Until then the grid keeps its empty state.</p></article>
+          <article><p class="tag">NO TEASER FOR UNWRITTEN WORK</p><p>Drafts and in-review posts have no public existence — not even a “coming soon” card.</p></article>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">07 — LANGUAGE</p>
+        <div class="ds-notes">
+          <article><p class="tag">EN · ENGLISH</p><p>Building Africa's AI future from Abia.</p></article>
+          <article><p class="tag">PCM · PIDGIN</p><p>We dey build Africa AI future from Abia.</p><small class="muted">Working draft — native review pending.</small></article>
+          <article><p class="tag">IG · IGBO</p><p>Na-ewu ọdịnihu AI Afrika site na Abia.</p><small class="muted">Working draft — native review pending.</small></article>
+        </div>
+      </section>
+
+      <section class="index-section">
+        <p class="eyebrow">08 — ACCESSIBILITY</p>
+        <div class="ds-notes">
+          <article><p class="tag">FOCUS</p><p>Every interactive element takes a 2px cyan <code>:focus-visible</code> ring. The browser default is never left in place.</p></article>
+          <article><p class="tag">MOTION</p><p><code>prefers-reduced-motion</code> collapses every animation and transition to 0.01ms.</p></article>
+          <article><p class="tag">STRUCTURE</p><p>A skip link, one <code>&lt;main&gt;</code>, labelled nav landmarks, and the mobile sheet marked <code>inert</code> while closed.</p></article>
+          <article><p class="tag">TARGETS</p><p>Controls stay at or above 34px on touch, and the mobile nav sheet sets its links at 29px.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer><a class="brand" href="index.html"><img class="brand-mark" src="logo-64.png" alt="" width="26" height="26" /><span>SYNTHAVIA<span class="brand-ai">.AI</span></span></a><p>Building Africa's AI future from Abia.</p><p>© 2026 Synthavia AI · Aba, Abia State, Nigeria</p></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+    <script>
+      // Read the live token values rather than restating them, so this page cannot drift from the CSS.
+      const tokens = [['--bg', 'Page ground'], ['--surface', 'Card surface'], ['--surface-2', 'Raised surface'], ['--line', 'Hairline'], ['--ink', 'Primary text'], ['--ink-2', 'Secondary text'], ['--purple', 'Accent · purple'], ['--cyan', 'Accent · cyan'], ['--amber', 'Pending / honest']];
+      function paintSwatches() {
+        const style = getComputedStyle(document.body);
+        document.querySelector('#swatches').innerHTML = tokens.map(([token, label]) => {
+          const value = style.getPropertyValue(token).trim();
+          return `<article class="swatch"><div style="background:${value}"></div><b>${token}</b><span>${label}</span><small>${value}</small></article>`;
+        }).join('');
+      }
+      paintSwatches();
+      document.addEventListener('click', (event) => { if (event.target.closest('[data-theme-cycle]')) setTimeout(paintSwatches, 30); });
+    </script>
+  </body>
+</html>

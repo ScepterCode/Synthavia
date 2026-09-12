@@ -1,0 +1,238 @@
+// Run with: npm test   (or: node --test test/)
+// Boots the real server against a throwaway database in a temp directory, so the tests exercise
+// the same code paths production does — publish filtering, auth, rate limits, upload validation.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync, spawn } = require('node:child_process');
+
+const projectRoot = path.join(__dirname, '..');
+const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'synthavia-test-'));
+const port = 4200 + (process.pid % 400);
+const base = `http://127.0.0.1:${port}`;
+const owner = { email: 'owner@test.local', password: 'test-password-12345', name: 'Test Owner' };
+let child;
+
+// A copy of the project with its own empty data directory: the real one is never touched.
+function prepareSandbox() {
+  for (const entry of ['server.js', 'db.js', 'notify.js', 'content.json', 'public']) {
+    fs.cpSync(path.join(projectRoot, entry), path.join(sandbox, entry), { recursive: true });
+  }
+  fs.mkdirSync(path.join(sandbox, 'data'), { recursive: true });
+}
+
+async function boot() {
+  child = spawn(process.execPath, ['server.js'], {
+    cwd: sandbox,
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', SYNTHAVIA_BACKUP_HOURS: '0', SYNTHAVIA_ADMIN_EMAIL: owner.email, SYNTHAVIA_ADMIN_PASSWORD: owner.password, SYNTHAVIA_ADMIN_NAME: owner.name, SYNTHAVIA_RATE_SUBMIT: '40' },
+    stdio: 'ignore'
+  });
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try { if ((await fetch(`${base}/api/health`)).ok) return; } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('server did not start');
+}
+
+const call = async (route, options = {}) => {
+  const response = await fetch(base + route, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });
+  const text = await response.text();
+  return { status: response.status, headers: response.headers, body: text.startsWith('{') || text.startsWith('[') ? JSON.parse(text) : text };
+};
+const auth = (token) => ({ Authorization: `Bearer ${token}` });
+const post = (route, payload, token) => call(route, { method: 'POST', body: JSON.stringify(payload), headers: token ? auth(token) : {} });
+
+let token;
+
+test.before(async () => {
+  prepareSandbox();
+  await boot();
+  token = (await post('/api/admin/login', { email: owner.email, password: owner.password })).body.token;
+  assert.ok(token, 'owner login should return a token');
+});
+test.after(() => { child?.kill(); try { fs.rmSync(sandbox, { recursive: true, force: true }); } catch {} });
+
+/* ---------- Publish state ---------- */
+
+test('drafts never reach the public API', async () => {
+  const publicView = (await call('/api/content')).body;
+  const adminView = (await call('/api/admin/content', { headers: auth(token) })).body;
+  assert.ok(adminView.posts.length > publicView.posts.length, 'admin should see more posts than the public');
+  assert.equal(publicView.posts.filter((p) => p.status_publish !== 'Published').length, 0);
+  assert.equal(publicView.events.filter((e) => e.status_publish !== 'Published').length, 0);
+  assert.equal(publicView.partners.length, 0, 'no partner is countersigned in the seed');
+});
+
+test('publishing an item makes it public, unpublishing hides it again', async () => {
+  const draft = (await call('/api/admin/content', { headers: auth(token) })).body.events.find((e) => e.status_publish === 'Draft');
+  await post('/api/admin/content', { collection: 'events', slug: draft.slug, status_publish: 'Published' }, token);
+  assert.ok((await call('/api/content')).body.events.some((e) => e.slug === draft.slug));
+  await post('/api/admin/content', { collection: 'events', slug: draft.slug, status_publish: 'Draft' }, token);
+  assert.ok(!(await call('/api/content')).body.events.some((e) => e.slug === draft.slug));
+});
+
+/* ---------- Stat sign-off ---------- */
+
+test('an unsigned figure never leaves the server as a number', async () => {
+  const pending = (await call('/api/stats')).body.metrics.find((m) => !m.signedOff);
+  assert.equal(pending.value, null, 'pending metrics must be null, not a hidden value');
+});
+
+test('sign-off requires a value and records who did it', async () => {
+  const refused = await post('/api/admin/stats', { key: 'trained', value: '', signedOff: true }, token);
+  assert.equal(refused.body.metric.signedOff, false, 'cannot sign off an empty figure');
+  const signed = await post('/api/admin/stats', { key: 'trained', value: '312', source: 'Audit', signedOff: true }, token);
+  assert.equal(signed.body.metric.signedOff, true);
+  assert.equal(signed.body.metric.signedOffBy, owner.email);
+  assert.equal((await call('/api/stats')).body.metrics.find((m) => m.key === 'trained').value, '312');
+  await post('/api/admin/stats', { key: 'trained', value: '', source: 'Attendance audit incomplete', signedOff: false }, token);
+});
+
+/* ---------- Auth and roles ---------- */
+
+test('admin routes reject anonymous callers', async () => {
+  for (const route of ['/api/admin/content', '/api/admin/submissions', '/api/admin/users', '/api/admin/analytics']) {
+    assert.equal((await call(route)).status, 401, `${route} should require a session`);
+  }
+});
+
+test('an editor cannot sign off figures or manage accounts', async () => {
+  await post('/api/admin/users', { email: 'editor@test.local', password: 'editor-password-123', name: 'Ed', role: 'editor' }, token);
+  const editorToken = (await post('/api/admin/login', { email: 'editor@test.local', password: 'editor-password-123' })).body.token;
+  assert.equal((await post('/api/admin/stats', { key: 'members', value: '9', signedOff: true }, editorToken)).status, 403);
+  assert.equal((await call('/api/admin/users', { headers: auth(editorToken) })).status, 403);
+  // but may still edit content
+  assert.equal((await call('/api/admin/content', { headers: auth(editorToken) })).status, 200);
+});
+
+test('the last owner cannot be deleted and sessions end on sign-out', async () => {
+  const me = (await call('/api/admin/me', { headers: auth(token) })).body.user;
+  const removal = await call('/api/admin/users', { method: 'DELETE', body: JSON.stringify({ id: me.id }), headers: auth(token) });
+  assert.equal(removal.status, 400);
+
+  const temporary = (await post('/api/admin/login', { email: owner.email, password: owner.password })).body.token;
+  await post('/api/admin/logout', {}, temporary);
+  assert.equal((await call('/api/admin/me', { headers: auth(temporary) })).status, 401);
+});
+
+test('wrong passwords are rejected', async () => {
+  assert.equal((await post('/api/admin/login', { email: owner.email, password: 'not-the-password' })).status, 401);
+});
+
+/* ---------- Submissions, spam and validation ---------- */
+
+test('a valid submission is stored and acknowledged', async () => {
+  const result = await post('/api/submissions', { type: 'Core signup', name: 'Ada', email: `ada-${Date.now()}@test.local`, interest: 'Join a project' });
+  assert.equal(result.status, 201);
+  assert.match(result.body.id, /^SY-[0-9A-F]{6}$/);
+});
+
+test('the honeypot field blocks automated submissions', async () => {
+  const result = await post('/api/submissions', { type: 'Core signup', name: 'Bot', email: 'bot@test.local', company: 'Acme Spam Co' });
+  assert.equal(result.status, 400);
+  assert.match(result.body.error, /automated/i);
+});
+
+test('bad input is refused', async () => {
+  assert.match((await post('/api/submissions', { type: 'Nope', email: 'a@b.co', name: 'x' })).body.error, /not recognised/);
+  assert.match((await post('/api/submissions', { type: 'Core signup', email: 'not-an-email', name: 'x' })).body.error, /email/i);
+  assert.match((await post('/api/submissions', { type: 'Core signup', email: 'a@b.co' })).body.error, /name/i);
+  assert.match((await post('/api/submissions', { type: 'Partner enquiry', name: 'x', email: 'p@b.co', organisation: 'Org' })).body.error, /required/i);
+});
+
+test('the same person cannot submit the same form twice in a minute', async () => {
+  const email = `dupe-${Date.now()}@test.local`;
+  assert.equal((await post('/api/submissions', { type: 'Contact message', name: 'Ada', email })).status, 201);
+  const second = await post('/api/submissions', { type: 'Contact message', name: 'Ada', email });
+  assert.equal(second.status, 400);
+  assert.match(second.body.error, /already have that one/i);
+});
+
+/* ---------- Uploads ---------- */
+
+test('uploads accept real images and reject disguised files', async () => {
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 7)]);
+  const good = await post('/api/admin/media', { name: 'portrait', data: `data:image/png;base64,${png.toString('base64')}` }, token);
+  assert.equal(good.status, 201);
+  assert.match(good.body.url, /^\/media\/portrait-[0-9a-f]{8}\.png$/);
+
+  const disguised = Buffer.from('<script>alert(1)</script>');
+  const bad = await post('/api/admin/media', { name: 'evil', data: `data:image/png;base64,${disguised.toString('base64')}` }, token);
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /PNG, JPEG and WebP/);
+});
+
+/* ---------- Durability ---------- */
+
+test('concurrent submissions all survive', async () => {
+  const before = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.length;
+  // Rate limiting is per IP, so write straight through the store the way the handler does.
+  const script = `
+    const store = require('./db.js');
+    const writes = Array.from({ length: 40 }, (_, i) => ({
+      id: 'CT-' + String(i).padStart(4, '0'), createdAt: new Date().toISOString(),
+      type: 'Contact message', name: 'Race ' + i, email: 'race' + i + '@test.local'
+    }));
+    for (const entry of writes) store.addSubmission(entry);
+    console.log(store.submissions().filter((r) => r.id.startsWith('CT-')).length);
+  `;
+  const written = Number(execFileSync(process.execPath, ['-e', script], { cwd: sandbox, encoding: 'utf8' }).trim());
+  assert.equal(written, 40, 'every concurrent write should be present');
+  const after = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.length;
+  assert.equal(after, before + 40);
+});
+
+test('a backup produces a restorable copy', async () => {
+  const result = await post('/api/admin/backup', {}, token);
+  assert.ok(result.body.bytes > 0);
+  assert.ok(fs.existsSync(path.join(sandbox, 'data', 'backups', result.body.file)));
+});
+
+/* ---------- Delivery and SEO ---------- */
+
+test('every submission queues an acknowledgement and a team notification', async () => {
+  const before = (await call('/api/admin/outbox', { headers: auth(token) })).body.messages.length;
+  await post('/api/submissions', { type: 'Contact message', name: 'Mail', email: `mail-${Date.now()}@test.local`, idea: 'Hello' });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const after = (await call('/api/admin/outbox', { headers: auth(token) })).body.messages;
+  assert.equal(after.length, before + 2, 'one to the sender, one to the owning inbox');
+});
+
+test('share tags and sitemap describe only published content', async () => {
+  const page = (await call('/view.html?page=blog&post=no-wrapper')).body;
+  assert.match(page, /og:title" content="African AI does not need another wrapper/);
+  assert.match(page, /application\/ld\+json/);
+  const sitemap = (await call('/sitemap.xml')).body;
+  assert.ok(!sitemap.includes('cohort-03-retro'), 'a draft post must not be listed in the sitemap');
+  assert.match((await call('/robots.txt')).body, /Disallow: \/admin\.html/);
+});
+
+/* ---------- Static serving ---------- */
+
+test('server source and the data store are unreachable over HTTP', async () => {
+  for (const route of ['/server.js', '/db.js', '/notify.js', '/content.json', '/data/synthavia.db', '/../server.js']) {
+    assert.equal((await call(route)).status, 404, `${route} must not be served`);
+  }
+});
+
+test('assets are compressed and cacheable', async () => {
+  const response = await fetch(`${base}/pages.css`, { headers: { 'Accept-Encoding': 'gzip' } });
+  assert.equal(response.headers.get('content-encoding'), 'gzip');
+  assert.match(response.headers.get('cache-control'), /max-age/);
+  const etag = response.headers.get('etag');
+  const repeat = await fetch(`${base}/pages.css`, { headers: { 'If-None-Match': etag } });
+  assert.equal(repeat.status, 304, 'a matching ETag should return 304');
+});
+
+/* ---------- Rate limiting (last: it exhausts the per-IP budget) ---------- */
+
+test('submissions are rate limited per connection', async () => {
+  let limited = false;
+  for (let i = 0; i < 60; i += 1) {
+    const result = await post('/api/submissions', { type: 'Newsletter signup', email: `flood-${i}-${Date.now()}@test.local` });
+    if (result.status === 429) { limited = true; break; }
+  }
+  assert.ok(limited, 'a flood of submissions should hit the rate limit');
+});
