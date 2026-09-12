@@ -1,6 +1,7 @@
-// Run with: npm test   (or: node --test test/)
-// Boots the real server against a throwaway database in a temp directory, so the tests exercise
-// the same code paths production does — publish filtering, auth, rate limits, upload validation.
+// Run with: npm test
+// Boots the real server against the real Postgres, but inside a throwaway schema that is created
+// at the start and dropped at the end — so the tests exercise production code paths without ever
+// touching production rows. Requires POSTGRES_URL in .env.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,13 +12,14 @@ const { execFileSync, spawn } = require('node:child_process');
 const projectRoot = path.join(__dirname, '..');
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'synthavia-test-'));
 const port = 4200 + (process.pid % 400);
+const testSchema = `synthavia_test_${process.pid}`;
 const base = `http://127.0.0.1:${port}`;
 const owner = { email: 'owner@test.local', password: 'test-password-12345', name: 'Test Owner' };
 let child;
 
 // A copy of the project with its own empty data directory: the real one is never touched.
 function prepareSandbox() {
-  for (const entry of ['server.js', 'db.js', 'notify.js', 'content.json', 'public']) {
+  for (const entry of ['server.js', 'db.js', 'notify.js', 'migrate.js', 'content.json', 'public', 'node_modules']) {
     fs.cpSync(path.join(projectRoot, entry), path.join(sandbox, entry), { recursive: true });
   }
   fs.mkdirSync(path.join(sandbox, 'data'), { recursive: true });
@@ -26,14 +28,19 @@ function prepareSandbox() {
 async function boot() {
   child = spawn(process.execPath, ['server.js'], {
     cwd: sandbox,
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', SYNTHAVIA_BACKUP_HOURS: '0', SYNTHAVIA_ADMIN_EMAIL: owner.email, SYNTHAVIA_ADMIN_PASSWORD: owner.password, SYNTHAVIA_ADMIN_NAME: owner.name, SYNTHAVIA_RATE_SUBMIT: '40' },
-    stdio: 'ignore'
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', PGSCHEMA: testSchema, SYNTHAVIA_BACKUP_HOURS: '0',
+           SYNTHAVIA_ADMIN_EMAIL: owner.email, SYNTHAVIA_ADMIN_PASSWORD: owner.password, SYNTHAVIA_ADMIN_NAME: owner.name,
+           SYNTHAVIA_RATE_SUBMIT: '40', SYNTHAVIA_RATE_LOGIN: '60', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe']
   });
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  let childLog = '';
+  child.stdout.on('data', (d) => { childLog += d; });
+  child.stderr.on('data', (d) => { childLog += d; });
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try { if ((await fetch(`${base}/api/health`)).ok) return; } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error('server did not start');
+  throw new Error(`server did not start. Child output:\n${childLog.trim() || '(silent)'}`);
 }
 
 const call = async (route, options = {}) => {
@@ -48,11 +55,20 @@ let token;
 
 test.before(async () => {
   prepareSandbox();
+  // Schema first, exactly as production does it (npm run migrate, then start).
+  execFileSync(process.execPath, ['migrate.js'], { cwd: sandbox, env: { ...process.env, PGSCHEMA: testSchema }, stdio: 'ignore' });
   await boot();
   token = (await post('/api/admin/login', { email: owner.email, password: owner.password })).body.token;
   assert.ok(token, 'owner login should return a token');
 });
-test.after(() => { child?.kill(); try { fs.rmSync(sandbox, { recursive: true, force: true }); } catch {} });
+test.after(async () => {
+  child?.kill();
+  // Drop the throwaway schema so repeated runs do not accumulate tables in the project.
+  const { Pool } = require(path.join(projectRoot, 'node_modules', 'pg'));
+  const pool = new Pool({ connectionString: process.env.POSTGRES_URL_DIRECT || process.env.POSTGRES_URL, ssl: { rejectUnauthorized: false }, max: 1 });
+  try { await pool.query(`DROP SCHEMA IF EXISTS ${testSchema} CASCADE`); } finally { await pool.end(); }
+  try { fs.rmSync(sandbox, { recursive: true, force: true }); } catch {}
+});
 
 /* ---------- Publish state ---------- */
 
@@ -170,24 +186,34 @@ test('concurrent submissions all survive', async () => {
   const before = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.length;
   // Rate limiting is per IP, so write straight through the store the way the handler does.
   const script = `
+    process.env.PGSCHEMA = ${JSON.stringify(testSchema)};
     const store = require('./db.js');
     const writes = Array.from({ length: 40 }, (_, i) => ({
       id: 'CT-' + String(i).padStart(4, '0'), createdAt: new Date().toISOString(),
       type: 'Contact message', name: 'Race ' + i, email: 'race' + i + '@test.local'
     }));
-    for (const entry of writes) store.addSubmission(entry);
-    console.log(store.submissions().filter((r) => r.id.startsWith('CT-')).length);
+    (async () => {
+      await Promise.all(writes.map((entry) => store.addSubmission(entry)));
+      const all = await store.submissions();
+      console.log(all.filter((r) => r.id.startsWith('CT-')).length);
+      await store.close();
+    })();
   `;
-  const written = Number(execFileSync(process.execPath, ['-e', script], { cwd: sandbox, encoding: 'utf8' }).trim());
+  const written = Number(execFileSync(process.execPath, ['-e', script], { cwd: sandbox, encoding: 'utf8', env: { ...process.env, PGSCHEMA: testSchema, PGPOOL_MAX: '12' } }).trim());
   assert.equal(written, 40, 'every concurrent write should be present');
   const after = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.length;
   assert.equal(after, before + 40);
 });
 
-test('a backup produces a restorable copy', async () => {
+test('a backup exports every table', async () => {
   const result = await post('/api/admin/backup', {}, token);
   assert.ok(result.body.bytes > 0);
-  assert.ok(fs.existsSync(path.join(sandbox, 'data', 'backups', result.body.file)));
+  const file = path.join(sandbox, 'data', 'backups', result.body.file);
+  assert.ok(fs.existsSync(file));
+  const dump = JSON.parse(fs.readFileSync(file, 'utf8')).dump;
+  assert.ok(dump.content.length > 0, 'content must be in the export');
+  assert.ok(dump.users.length > 0, 'accounts must be in the export');
+  assert.ok(dump.submissions.length > 0, 'submissions must be in the export');
 });
 
 /* ---------- Delivery and SEO ---------- */
@@ -212,7 +238,7 @@ test('share tags and sitemap describe only published content', async () => {
 /* ---------- Static serving ---------- */
 
 test('server source and the data store are unreachable over HTTP', async () => {
-  for (const route of ['/server.js', '/db.js', '/notify.js', '/content.json', '/data/synthavia.db', '/../server.js']) {
+  for (const route of ['/server.js', '/db.js', '/notify.js', '/content.json', '/.env', '/../server.js']) {
     assert.equal((await call(route)).status, 404, `${route} must not be served`);
   }
 });

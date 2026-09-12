@@ -1,9 +1,11 @@
 # Synthavia AI website prototype
 
-Requires **Node 22 or newer** (it uses the built-in `node:sqlite`). No third-party dependencies.
+Requires **Node 22 or newer** and a Postgres database (Supabase).
 
 ```powershell
-node server.js
+npm install
+npm run migrate   # once: creates the schema and seeds content
+npm start
 ```
 
 Open `http://127.0.0.1:4174`. The first visit to `/admin.html` creates the owner account; or set
@@ -36,11 +38,26 @@ Everything reachable over HTTP lives in `public/`. `server.js`, `db.js`, `notify
 
 ## Storage
 
-Everything lives in **SQLite** at `data/synthavia.db` (`db.js`). Every write runs inside a transaction, so two requests arriving together can no longer overwrite each other — the failure mode the previous JSON files had. `content.json` is only a seed: it populates an empty database on first boot and is never read again once rows exist.
+Everything lives in **Postgres** (`db.js`), hosted on Supabase. Every write runs in a transaction, so two requests arriving together cannot overwrite each other.
 
-On first run the server imports any pre-database `data/*.json` files and moves them to `data/legacy-json/`, so nothing collected before the migration is lost.
+Two connection strings, and they are not interchangeable:
 
-**Backups** run on boot and every `SYNTHAVIA_BACKUP_HOURS` (default 6) into `data/backups/`, keeping the last 14. The write-ahead log is checkpointed first, so each file is a complete, restorable database — restore by stopping the server and copying one over `data/synthavia.db`. `npm run backup` takes one on demand, and owners can trigger one from the admin's Analytics view.
+- **`POSTGRES_URL`** — Supabase's *transaction pooler*, port 6543. All runtime queries. It survives serverless cold starts, and node-postgres avoids named prepared statements, which is what makes it compatible with transaction-mode pooling.
+- **`POSTGRES_URL_DIRECT`** — the *session pooler*, port 5432. Schema changes only. Supabase's "Direct connection" host (`db.<ref>.supabase.co`) is IPv6-only and will not resolve on most networks — use the session pooler instead.
+
+**Migrations are a separate command, deliberately.** `npm run migrate` creates the schema and seeds content. The application never does this on boot: on serverless every cold start would open a session-pooler connection to run DDL, and Supabase allows very few of those. If the schema is missing, the server says so and exits rather than starting half-working.
+
+`content.json` is only a seed — it populates empty tables on first migrate and is never read at runtime.
+
+**Backups** are a JSON export of every table into `data/backups/`, on boot and every `SYNTHAVIA_BACKUP_HOURS`, keeping the last 14. `restore()` reads one back into an empty database. Supabase's free tier has no automated backups, so until you are on a paid plan this is your only safety net for submitted applications. On Vercel there is no long-lived process, so schedule `npm run backup` with Vercel Cron instead.
+
+## Images
+
+Uploads go to **Supabase Storage** (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, bucket `media`, which must be public). With no Supabase credentials set they fall back to `public/media/` on disk, so local development needs no account. Vercel's filesystem is read-only, so the disk path only works locally.
+
+The browser downscales to 900px before upload, and the server validates the file's **magic bytes** rather than its declared MIME type.
+
+Deliberate site imagery — the event gallery — is committed under `public/media/events/` and ships with the deploy. Runtime uploads are gitignored.
 
 ## Accounts
 
@@ -67,16 +84,18 @@ Self-hosted and privacy-respecting: the server counts a path, a day and the refe
 
 `npm test` boots the real server against a throwaway database in a temp directory and covers publish filtering, stat sign-off, role permissions, honeypot and rate limiting, duplicate suppression, upload validation, concurrent writes, backups, share tags, and that server source and the database are unreachable over HTTP. 20 tests.
 
-## Deployment
+## Deployment (Vercel)
 
-The app is a Node server, so it needs a Node host — Render, Railway, Fly.io or a small VPS — not static hosting.
+`api/index.js` is the entry point: Vercel invokes the exported request handler per request instead of keeping a listening server. `vercel.json` rewrites the server-rendered routes (`/`, the HTML pages, `robots.txt`, `sitemap.xml`, `/api/*`) to that function; everything else in `public/` is served straight from the CDN. `includeFiles` bundles `public/**` with the function, because the HTML is read from disk to inject share tags.
 
-```bash
-docker build -t synthavia .
-docker run -p 4174:4174 --env-file .env -v synthavia-data:/app/data -v synthavia-media:/app/public/media synthavia
-```
+1. Import the repo in Vercel.
+2. Add every variable from `.env` under Settings → Environment Variables, with `TRUST_PROXY=1`.
+3. Run `npm run migrate` once against the production database (locally with the same `POSTGRES_URL`).
+4. Deploy, then open `/admin.html` to create the owner account.
 
-Copy `.env.example` to `.env` and fill it in. Two volumes matter: `data/` holds the database and backups, `public/media/` holds uploaded photos — without them both are lost on redeploy. Put HTTPS in front (the platform's router, or Caddy/nginx on a VPS) and set `TRUST_PROXY=1`. `/api/health` is the health check.
+Security headers (HSTS, `X-Frame-Options`, `nosniff`, referrer policy) are set in `vercel.json`.
+
+The `Dockerfile` is still there if you ever move to a conventional host, where the scheduled backup and session cleanup timers also run — on Vercel they do not, so use Vercel Cron for `npm run backup`.
 
 ## How content works
 
