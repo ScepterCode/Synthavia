@@ -333,6 +333,36 @@ test('mail is delivered, failures are recorded, and retry clears them', async ()
     })).json();
     assert.equal(probe.sent, true);
     assert.ok(received.some((mail) => mail.to[0] === 'probe@test.local'));
+
+    // A hand-written email: the team writes the body, the app adds the signature and the Reply-To.
+    const written = await (await fetch(`${mailBase}/api/admin/email`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify({ to: 'reader@test.local', subject: 'About your application', body: 'Hello — one question before we decide.' })
+    })).json();
+    assert.equal(written.sent, true);
+    const composed = received.find((mail) => mail.to[0] === 'reader@test.local');
+    assert.ok(composed, 'the composed message must be delivered');
+    assert.equal(composed.subject, 'About your application');
+    assert.match(composed.text, /one question before we decide/);
+    assert.match(composed.text, /44b Aba Owerri Road/, 'the signature is added for the writer');
+    assert.ok(composed.reply_to, 'a hand-written email still replies to the team inbox');
+
+    // It is recorded with its author, so the outbox is a complete log of what this site has sent.
+    const log = await (await fetch(`${mailBase}/api/admin/outbox`, { headers: auth(token) })).json();
+    const entry = log.messages.find((message) => message.id === written.id);
+    assert.equal(entry.sentBy, owner.email, 'a hand-written email records who sent it');
+    assert.equal(log.messages.find((message) => message.subject.startsWith('[Partner enquiry]')).sentBy, '', 'automatic mail has no author');
+
+    for (const bad of [{ to: 'not-an-address', subject: 'x', body: 'yy' }, { to: 'a@b.co', subject: '', body: 'yy' }, { to: 'a@b.co', subject: 'x', body: ' ' }]) {
+      const refused = await fetch(`${mailBase}/api/admin/email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...auth(token) }, body: JSON.stringify(bad)
+      });
+      assert.equal(refused.status, 400, `${JSON.stringify(bad)} should be refused`);
+    }
+    const anonymous = await fetch(`${mailBase}/api/admin/email`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'a@b.co', subject: 'x', body: 'yy' })
+    });
+    assert.equal(anonymous.status, 401, 'only signed-in admins can send mail');
   } finally {
     mailChild.kill();
     provider.close();

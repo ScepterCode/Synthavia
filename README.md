@@ -148,6 +148,14 @@ SYNTHAVIA_ADDRESS=44b Aba Owerri Road, Aba, Abia State, Nigeria
 
 **Send a test email** in the same panel proves delivery end to end without waiting for a real submission. It uses the identical code path, so whatever it reports is what a visitor's acknowledgement would hit.
 
+### Sending an email by hand
+
+The Outbox has a composer: **to**, **subject**, **message**, Send. The Synthavia signature and postal address are appended for you, and Reply-To is set to the general inbox so the answer comes back to the team rather than to the unattended from-address.
+
+Every submission with an email address also carries a **Reply** button. It opens the composer with the recipient filled in and the subject set to `Re: your <form type> (<reference>)`, so the thread stays tied to the record.
+
+Hand-written mail goes out through the same path as automatic mail and lands in the same outbox, tagged with who sent it — automatic messages show as `automatic`. One log of everything the site has ever sent. A failed send keeps the draft on screen rather than making anyone retype it.
+
 The delivery path is covered by a test that runs the app against a stub provider: it asserts both messages go out with the right Reply-To, that a rejection is recorded with the provider's message rather than swallowed, and that *Retry undelivered* clears it.
 
 ## Community rooms

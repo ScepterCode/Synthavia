@@ -149,6 +149,7 @@ async function settings() {
   const saved = await store.settingsRaw();
   return seedSettings.map((entry) => ({ ...entry, value: saved[entry.key] ?? entry.value }));
 }
+const emailShaped = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 async function settingsMap() { return Object.fromEntries((await settings()).map((entry) => [entry.key, entry.value])); }
 
 /* ---------- Auth ---------- */
@@ -556,8 +557,25 @@ async function handler(request, response) {
       if (url.pathname === '/api/admin/email-test' && request.method === 'POST') {
         const input = await readBody(request);
         const recipient = safeText(input.email, 160).toLowerCase() || user.email;
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) return respond(response, 400, { error: 'That is not an email address.' });
-        return respond(response, 200, await notify.sendTest(recipient));
+        if (!emailShaped(recipient)) return respond(response, 400, { error: 'That is not an email address.' });
+        return respond(response, 200, await notify.sendTest(recipient, user.email));
+      }
+      // A hand-written email — a reply to a submission, or anything else the team needs to send.
+      // It goes out through the same path as automatic mail and lands in the same outbox, so there
+      // is one record of everything this site has ever sent.
+      if (url.pathname === '/api/admin/email' && request.method === 'POST') {
+        const input = await readBody(request);
+        const recipient = safeText(input.to, 160).toLowerCase();
+        const subject = safeText(input.subject, 200);
+        const body = safeText(input.body, 5000);
+        if (!emailShaped(recipient)) return respond(response, 400, { error: 'That is not an email address.' });
+        if (!subject) return respond(response, 400, { error: 'A subject is required.' });
+        if (body.trim().length < 2) return respond(response, 400, { error: 'The message is empty.' });
+        // Replies come back to the team inbox, never to the unattended from-address.
+        const inboxes = await settingsMap();
+        return respond(response, 200, await notify.sendOne({
+          to: recipient, subject, body, replyTo: inboxes.teamEmail || '', sentBy: user.email
+        }));
       }
       if (url.pathname === '/api/admin/analytics' && request.method === 'GET') {
         return respond(response, 200, await store.viewStats(Number(url.searchParams.get('days')) || 30));

@@ -1,6 +1,9 @@
 // Unlisted route. The stat sign-off and the content tables here are what the public pages read from.
 const adminTokenKey = 'synthavia-admin-session';
-const state = { view: 'dashboard', filter: 'All', editing: null, records: [], metrics: [], content: null, settings: [], outbox: { messages: [], configured: false }, me: null, users: [], analytics: null };
+const state = { view: 'dashboard', filter: 'All', editing: null, records: [], metrics: [], content: null, settings: [], outbox: { messages: [], configured: false }, me: null, users: [], analytics: null,
+  // The composer keeps its own draft so a re-render — a reload, a tab switch — never eats what has
+  // been typed.
+  compose: { to: '', subject: '', body: '' } };
 const main = document.querySelector('#main');
 
 function esc(value) {
@@ -178,7 +181,8 @@ function submissions() {
       <button class="button button-quiet" id="clearRecords" ${state.records.length ? '' : 'disabled'}>Clear server records</button></section>
     <div class="filter-bar">${types.map((type) => `<button class="chip" data-adminfilter="${esc(type)}" aria-pressed="${state.filter === type}">${esc(type)} <b>${type === 'All' ? state.records.length : state.records.filter((record) => record.type === type).length}</b></button>`).join('')}</div>
     ${shown.length ? `<div class="records">${shown.map((record) => `<article><div><p class="tag">${esc(record.type)}</p><h3>${esc(record.name || record.organisation || 'Anonymous')}</h3><p>${esc(record.email || 'No email')} · ${when(record.createdAt)}</p></div>
-      <div><b>${esc(record.id)}</b><p>${esc(detail(record))}</p></div></article>`).join('')}</div>`
+      <div><b>${esc(record.id)}</b><p>${esc(detail(record))}</p>
+      ${record.email ? `<button class="button button-quiet button-small" data-reply="${esc(record.id)}">Reply <span>→</span></button>` : ''}</div></article>`).join('')}</div>`
     : `<div class="admin-empty"><span>◇</span><h3>Nothing in this queue.</h3><p>Use the public Join Core, application, partnership or newsletter forms to generate records here.</p></div>`}`;
 }
 
@@ -272,7 +276,18 @@ function outboxView() {
       </div></section>
     ${state.outbox.from ? `<p class="muted outbox-from">Sending as <code>${esc(state.outbox.from)}</code>. That domain has to be verified with your email provider or every send is rejected — a Gmail address can never be the sender.</p>` : ''}
     <p class="form-note" id="testEmailNote"></p>
-    ${messages.length ? `<div class="records">${messages.slice(0, 60).map((message) => `<article><div><p class="tag">${esc(message.to)}</p><h3>${esc(message.subject)}</h3><p>${when(message.createdAt)} · ${message.attempts} attempt${message.attempts === 1 ? '' : 's'}</p></div>
+    <form class="composer" id="composeForm">
+      <p class="tag">WRITE AN EMAIL</p>
+      <label>To<input name="to" type="email" required placeholder="someone@example.com" value="${esc(state.compose.to)}" /></label>
+      <label>Subject<input name="subject" required placeholder="What this is about" value="${esc(state.compose.subject)}" /></label>
+      <label>Message<textarea name="body" required rows="7" placeholder="Write it as you would in any mail client. The Synthavia signature and address are added for you.">${esc(state.compose.body)}</textarea></label>
+      <div class="composer-actions">
+        <button class="button" type="submit">Send <span>→</span></button>
+        <button class="button button-quiet" type="button" id="composeClear">Clear</button>
+      </div>
+      <p class="form-note" id="composeNote">Replies come back to ${esc(state.settings.find((entry) => entry.key === 'teamEmail')?.value || 'the team inbox')}. Everything sent here is recorded below.</p>
+    </form>
+    ${messages.length ? `<div class="records">${messages.slice(0, 60).map((message) => `<article><div><p class="tag">${esc(message.to)}</p><h3>${esc(message.subject)}</h3><p>${when(message.createdAt)} · ${message.attempts} attempt${message.attempts === 1 ? '' : 's'}${message.sentBy ? ` · sent by ${esc(message.sentBy)}` : ' · automatic'}</p></div>
       <div><span class="status-line"><span class="dot tone-${tone[message.status] || 'muted'}"></span>${esc(message.status)}</span><p>${esc(message.error || '')}</p></div></article>`).join('')}</div>`
       : '<div class="admin-empty"><span>◇</span><h3>No mail yet.</h3><p>Submit a form on the public site and both the acknowledgement and the team notification appear here.</p></div>'}`;
 }
@@ -338,6 +353,51 @@ function render() {
     event.target.disabled = false;
     load();
   });
+  // Typing is kept in state so that a reload triggered by another action cannot discard a draft.
+  document.querySelector('#composeForm')?.addEventListener('input', (event) => {
+    if (event.target.name) state.compose[event.target.name] = event.target.value;
+  });
+  document.querySelector('#composeClear')?.addEventListener('click', () => {
+    state.compose = { to: '', subject: '', body: '' };
+    render();
+  });
+  document.querySelector('#composeForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const note = document.querySelector('#composeNote');
+    const button = event.target.querySelector('button[type="submit"]');
+    button.disabled = true;
+    note.textContent = `Sending to ${state.compose.to}…`;
+    try {
+      const result = await api('/api/admin/email', { method: 'POST', body: JSON.stringify(state.compose) });
+      if (result.sent) {
+        note.textContent = `Sent to ${result.to}.`;
+        state.compose = { to: '', subject: '', body: '' };
+      } else {
+        // The draft is deliberately left intact: a failed send is usually a fixable address or a
+        // provider problem, and retyping the message is the last thing anyone wants to do.
+        note.textContent = `Not sent — ${result.error}`;
+      }
+    } catch (error) {
+      note.textContent = `Not sent — ${error.message}`;
+    }
+    button.disabled = false;
+    load();
+  });
+  main.querySelectorAll('[data-reply]').forEach((button) => button.addEventListener('click', () => {
+    const record = state.records.find((entry) => entry.id === button.dataset.reply);
+    if (!record) return;
+    state.compose = {
+      to: record.email,
+      subject: `Re: your ${record.type.toLowerCase()} (${record.id})`,
+      body: `${record.name ? `Hello ${record.name},` : 'Hello,'}\n\n`
+    };
+    state.view = 'outbox';
+    render();
+    const field = document.querySelector('#composeForm textarea');
+    field?.focus();
+    field?.setSelectionRange(field.value.length, field.value.length);
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
   document.querySelector('#backupNow')?.addEventListener('click', async (event) => {
     event.target.disabled = true;
     try { const r = await api('/api/admin/backup', { method: 'POST' }); document.querySelector('#backupNote').textContent = `Saved ${r.file} (${Math.round(r.bytes / 1024)} KB). ${r.kept} kept.`; }

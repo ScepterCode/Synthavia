@@ -595,6 +595,12 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 
 /* Outbox actions ------------------------------------------------------ */
 .outbox-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.composer { border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 14px; margin: 8px 0 34px; padding: 26px; }
+.composer label { color: var(--ink-2); display: block; font: 11px var(--mono); }
+.composer input, .composer textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 3px; color: var(--ink); display: block; margin-top: 7px; padding: 12px; width: 100%; }
+.composer textarea { font: inherit; line-height: 1.55; resize: vertical; }
+.composer input:focus, .composer textarea:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.composer-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .button[disabled] { cursor: not-allowed; opacity: 0.45; }
 .button[disabled]:hover { background: transparent; transform: none; }
 .outbox-from { font-size: 12px; margin: -14px 0 18px; }

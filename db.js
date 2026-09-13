@@ -94,6 +94,9 @@ async function migrate() {
       );
       CREATE INDEX IF NOT EXISTS rate_hits_lookup ON ${schema}.rate_hits (bucket, client, at DESC);
     `);
+    // Added after the first release: who sent a hand-written email. Blank for automatic mail.
+    await admin.query(`ALTER TABLE ${schema}.outbox ADD COLUMN IF NOT EXISTS sent_by text`);
+    await admin.query(`ALTER TABLE ${schema}.outbox ADD COLUMN IF NOT EXISTS reply_to text`);
   } finally {
     await admin.end();
   }
@@ -158,11 +161,11 @@ const saveSettings = (values) => transaction(async (client) => {
 /* ---------- Outbox ---------- */
 
 const addMessage = (message) => query(
-  'INSERT INTO outbox (id, created_at, recipient, subject, body, status, attempts, error, sent_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-  [message.id, message.createdAt, message.to, message.subject, message.body, message.status, message.attempts, message.error || '', message.sentAt || null]
+  'INSERT INTO outbox (id, created_at, recipient, subject, body, status, attempts, error, sent_at, sent_by, reply_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+  [message.id, message.createdAt, message.to, message.subject, message.body, message.status, message.attempts, message.error || '', message.sentAt || null, message.sentBy || '', message.replyTo || '']
 );
 const outbox = (limit = 200) => rows(
-  'SELECT id, created_at AS "createdAt", recipient AS "to", subject, body, status, attempts, error, sent_at AS "sentAt" FROM outbox ORDER BY created_at DESC LIMIT $1',
+  'SELECT id, created_at AS "createdAt", recipient AS "to", subject, body, status, attempts, error, sent_at AS "sentAt", sent_by AS "sentBy", reply_to AS "replyTo" FROM outbox ORDER BY created_at DESC LIMIT $1',
   [limit]
 );
 const updateMessage = (message) => query(

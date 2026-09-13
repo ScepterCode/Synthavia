@@ -114,23 +114,23 @@ async function retry() {
   return { retried, failed, configured };
 }
 
-// A one-off send so delivery can be proved from the admin without waiting for a real submission.
-// It goes through the same code path as everything else and is recorded in the outbox like any
-// other message, so a failure here is the same failure a visitor's acknowledgement would hit.
-async function sendTest(recipient) {
+// One message, sent now, recorded in the outbox like any other. This is what the admin's composer
+// and its test button both use: the same code path as an automatic acknowledgement, so whatever it
+// reports is what a visitor's mail would hit. A failure is kept, never thrown away — it stays in the
+// outbox and Retry undelivered can pick it up later.
+async function sendOne({ to, subject, body, replyTo = '', sentBy = '' }) {
   const record = {
     id: `MSG-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
     createdAt: new Date().toISOString(),
-    to: recipient,
-    subject: 'Synthavia AI — test email',
-    body: `This is a test from the Synthavia admin.\n\nIf you are reading it, form acknowledgements and team notifications will be delivered too.\n\nSent ${new Date().toUTCString()}.\n\n— Synthavia AI\n${postalAddress}`,
+    to, subject, replyTo, sentBy,
+    body: `${body}\n\n— Synthavia AI\n${postalAddress}`,
     status: 'queued',
     attempts: 0
   };
   if (!configured) {
     record.error = 'No email endpoint configured — set SYNTHAVIA_EMAIL_ENDPOINT and SYNTHAVIA_EMAIL_KEY.';
     await store.addMessage(record);
-    return { sent: false, configured, error: record.error };
+    return { sent: false, configured, error: record.error, id: record.id };
   }
   record.attempts = 1;
   try {
@@ -138,13 +138,21 @@ async function sendTest(recipient) {
     record.status = 'sent';
     record.sentAt = new Date().toISOString();
     await store.addMessage(record);
-    return { sent: true, configured, to: recipient };
+    return { sent: true, configured, to, id: record.id };
   } catch (error) {
     record.status = 'failed';
     record.error = error.message;
     await store.addMessage(record);
-    return { sent: false, configured, error: error.message };
+    return { sent: false, configured, error: error.message, id: record.id };
   }
 }
 
-module.exports = { compose, dispatch, retry, sendTest, configured, from: fromAddress };
+// Proving delivery should not require composing anything.
+const sendTest = (recipient, sentBy = '') => sendOne({
+  to: recipient,
+  sentBy,
+  subject: 'Synthavia AI — test email',
+  body: `This is a test from the Synthavia admin.\n\nIf you are reading it, form acknowledgements and team notifications will be delivered too.\n\nSent ${new Date().toUTCString()}.`
+});
+
+module.exports = { compose, dispatch, retry, sendOne, sendTest, configured, from: fromAddress };
