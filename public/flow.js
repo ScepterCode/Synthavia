@@ -96,8 +96,8 @@ async function submit(form) {
     if (!response.ok) throw new Error(result.error);
     const card = document.querySelector('.flow-card');
     card.innerHTML = isJoin
-      ? `<p class="tag">WELCOME IN</p><h2>You’re in the<br /><em>right room.</em></h2><p>Your reference is <strong>${result.id}</strong>, and a confirmation is on its way to your inbox.</p>${await rooms()}<div class="join-actions"><a class="button button-quiet" href="view.html?page=core">What runs inside Core <span>→</span></a></div>`
-      : `<p class="tag">RECEIVED</p><h2>You’re in the<br /><em>right queue.</em></h2><p>Your reference is <strong>${result.id}</strong>, and a confirmation is on its way to your inbox. Two reviewers read every application, and we reply to all of them — including the no’s.</p><div class="join-actions"><a class="button" href="view.html?page=programs">Read about the tracks <span>→</span></a><a class="button button-quiet" href="index.html">Back home <span>↗</span></a></div>`;
+      ? `<p class="tag">WELCOME IN</p><h2>You’re in the<br /><em>right room.</em></h2><p>Your reference is <strong>${result.id}</strong>, and a confirmation is on its way to your inbox.</p>${await rooms()}<div class="join-actions"><a class="button button-quiet" href="/core">What runs inside Core <span>→</span></a></div>`
+      : `<p class="tag">RECEIVED</p><h2>You’re in the<br /><em>right queue.</em></h2><p>Your reference is <strong>${result.id}</strong>, and a confirmation is on its way to your inbox. Two reviewers read every application, and we reply to all of them — including the no’s.</p><div class="join-actions"><a class="button" href="/programs">Read about the tracks <span>→</span></a><a class="button button-quiet" href="/">Back home <span>↗</span></a></div>`;
   } catch (error) {
     button.disabled = false;
     button.innerHTML = `${isJoin ? 'Join Synthavia Core' : 'Send application'} <span>→</span>`;

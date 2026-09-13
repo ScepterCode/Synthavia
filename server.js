@@ -12,8 +12,12 @@ const store = require('./db.js');
 
 const root = __dirname;
 const publicDir = path.join(root, 'public');
+// The HTML templates live outside public/ deliberately. public/ is the static output directory on
+// Vercel, and its CDN answers any file there before a rewrite is consulted — so an .html file in
+// public/ is served raw, skipping this server and with it the share tags, the canonical URL and
+// the view counter, silently. See README, "Why views/ is not inside public/".
+const viewsDir = path.join(root, 'views');
 const mediaDir = path.join(publicDir, 'media');
-const seedContentFile = path.join(root, 'content.json');
 const port = Number(process.env.PORT || 4174);
 const host = process.env.HOST || '127.0.0.1';
 const trustProxy = process.env.TRUST_PROXY === '1';
@@ -205,9 +209,52 @@ async function buildEntry(input) {
   return entry;
 }
 
+/* ---------- Routes ---------- */
+
+// The site has readable paths — /programs, /blog/<slug> — rather than query strings. view.html is
+// the single shell behind all of the section pages, so a path is resolved to a page here and the
+// client router derives the same thing from location.pathname. Keep the two in step: sections and
+// detailOf below are mirrored at the top of public/view.js.
+const sections = ['team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
+const detailOf = { lab: 'case', blog: 'post', events: 'event' };
+const standalone = { '': 'index.html', admin: 'admin.html', flow: 'flow.html', system: 'system.html' };
+
+// Resolves a request path to the template that answers it, or null when nothing does.
+// { file, page, detailKey, slug } — page and below are set only for the view.html shell.
+function resolveRoute(pathname) {
+  const trimmed = pathname.replace(/^\/+|\/+$/g, '');
+  const parts = trimmed === '' ? [''] : trimmed.split('/');
+  if (parts.length === 1) {
+    if (standalone[parts[0]]) return { file: standalone[parts[0]] };
+    if (sections.includes(parts[0])) return { file: 'view.html', page: parts[0] };
+    return null;
+  }
+  if (parts.length === 2 && detailOf[parts[0]] && parts[1]) {
+    return { file: 'view.html', page: parts[0], detailKey: detailOf[parts[0]], slug: decodeURIComponent(parts[1]) };
+  }
+  return null;
+}
+
+// The readable path for an old query-string URL, so those redirect once instead of lingering as
+// duplicates. /view.html?page=blog&post=x becomes /blog/x.
+function legacyTarget(url) {
+  // A query string that is not routing — ?type=apply on the flow, a campaign tag — is carried over.
+  const carried = new URLSearchParams(url.search);
+  for (const key of ['page', 'case', 'post', 'event']) carried.delete(key);
+  const tail = carried.toString() ? `?${carried}` : '';
+
+  if (url.pathname === '/index.html') return `/${tail}`;
+  if (/^\/(admin|flow|system)\.html$/.test(url.pathname)) return url.pathname.replace('.html', '') + tail;
+  if (url.pathname !== '/view.html') return null;
+  const page = url.searchParams.get('page') || 'core';
+  if (!sections.includes(page)) return `/${tail}`;
+  const slug = detailOf[page] ? url.searchParams.get(detailOf[page]) : '';
+  return (slug ? `/${page}/${encodeURIComponent(slug)}` : `/${page}`) + tail;
+}
+
 /* ---------- Share tags ---------- */
 
-async function shareTags(request, url) {
+async function shareTags(request, url, route) {
   const base = origin(request);
   const site = 'Synthavia AI';
   let title = 'Synthavia AI — From Abia, for Africa';
@@ -215,12 +262,13 @@ async function shareTags(request, url) {
   let type = 'website';
   let schema = { '@context': 'https://schema.org', '@type': 'Organization', name: site, url: base, description, address: { '@type': 'PostalAddress', addressLocality: 'Aba', addressRegion: 'Abia State', addressCountry: 'NG' }, foundingDate: '2025' };
 
-  if (url.pathname === '/view.html') {
+  if (route && route.page) {
     const published = await publicContent();
-    const page = url.searchParams.get('page') || 'core';
-    const post = published.posts.find((item) => item.slug === url.searchParams.get('post'));
-    const project = published.projects.find((item) => item.slug === url.searchParams.get('case'));
-    const event = published.events.find((item) => item.slug === url.searchParams.get('event'));
+    const page = route.page;
+    const slug = route.slug || '';
+    const post = route.detailKey === 'post' ? published.posts.find((item) => item.slug === slug) : null;
+    const project = route.detailKey === 'case' ? published.projects.find((item) => item.slug === slug) : null;
+    const event = route.detailKey === 'event' ? published.events.find((item) => item.slug === slug) : null;
     if (post) {
       title = `${post.title} — ${site}`; description = post.dek; type = 'article';
       schema = { '@context': 'https://schema.org', '@type': 'Article', headline: post.title, description, author: { '@type': 'Organization', name: post.author }, publisher: { '@type': 'Organization', name: site } };
@@ -246,8 +294,10 @@ async function shareTags(request, url) {
   }
 
   const shareImage = ['share.png', 'share.jpg'].find((name) => fs.existsSync(path.join(publicDir, name))) || 'logo.png';
-  const canonical = base + url.pathname + (url.search || '');
-  return `<meta property="og:site_name" content="${escapeXml(site)}" />
+  // Readable paths carry all the routing, so query strings here are filters or campaign tags.
+  // They must not fork the canonical URL into duplicates.
+  const canonical = base + (url.pathname.replace(/\/+$/, '') || '/');
+  const tags = `<meta property="og:site_name" content="${escapeXml(site)}" />
     <meta property="og:type" content="${type}" />
     <meta property="og:title" content="${escapeXml(title)}" />
     <meta property="og:description" content="${escapeXml(description)}" />
@@ -259,22 +309,50 @@ async function shareTags(request, url) {
     <meta name="twitter:image" content="${escapeXml(base)}/${shareImage}" />
     <link rel="canonical" href="${escapeXml(canonical)}" />
     ${schema ? `<script type="application/ld+json">${JSON.stringify(schema)}</script>` : ''}`;
+  // The title and description go back too: view.js sets document.title, but a crawler that runs no
+  // JavaScript needs both already in the markup.
+  return { title, description, tags };
 }
 
 /* ---------- Static delivery ---------- */
 
+// Assets only — css, js, images, fonts. On Vercel the CDN serves these and this never runs; it is
+// what answers them when the app is hosted conventionally or run locally.
 async function sendStatic(request, response, url) {
-  const requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  const requested = decodeURIComponent(url.pathname).replace(/^\/+/, '');
   const file = path.resolve(publicDir, requested);
   const extension = path.extname(file);
-  if (!file.startsWith(publicDir + path.sep) || !types[extension]) return respond(response, 404, { error: 'Not found.' });
-  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) return respond(response, 404, { error: 'Not found.' });
+  if (!file.startsWith(publicDir + path.sep) || !types[extension] || extension === '.html') return sendNotFound(request, response, url);
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) return sendNotFound(request, response, url);
+  return sendFile(request, response, url, fs.readFileSync(file), extension, fs.statSync(file).mtime);
+}
 
-  const stat = fs.statSync(file);
+// An HTML page. Every page is served from here, which is what keeps the share tags, the canonical
+// URL and the view counter applying uniformly — precisely what breaks when a template sits in
+// public/ and the CDN answers it directly.
+async function sendPage(request, response, url, route, status = 200) {
+  const file = path.join(viewsDir, route.file);
+  if (!fs.existsSync(file)) return respond(response, 404, { error: 'Not found.' });
+  let body = fs.readFileSync(file, 'utf8');
+  // The admin is a private tool and the 404 is not content: neither gets share tags or a canonical.
+  if (route.file !== 'admin.html' && route.file !== '404.html') {
+    const share = await shareTags(request, url, route);
+    body = body
+      .replace('<title>Synthavia AI</title>', `<title>${escapeXml(share.title)}</title>`)
+      .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeXml(share.description)}" />`)
+      .replace('</head>', `${share.tags}\n  </head>`);
+  }
+  return sendFile(request, response, url, body, '.html', fs.statSync(file).mtime, status);
+}
+
+// A path that is neither a route nor an asset gets the site's own 404 page, not raw JSON.
+function sendNotFound(request, response, url) {
+  if (url.pathname.startsWith('/api/')) return respond(response, 404, { error: 'Not found.' });
+  return sendPage(request, response, url, { file: '404.html' }, 404);
+}
+
+function sendFile(request, response, url, body, extension, mtime, status = 200) {
   const isHtml = extension === '.html';
-  let body = isHtml || compressible.has(extension) ? fs.readFileSync(file, 'utf8') : fs.readFileSync(file);
-
-  if (isHtml && !file.endsWith('admin.html')) body = body.replace('</head>', `${await shareTags(request, url)}\n  </head>`);
 
   // Uploaded media carries a content hash in its name, so it can be cached hard. Everything else
   // revalidates cheaply with an ETag.
@@ -284,21 +362,21 @@ async function sendStatic(request, response, url) {
     'Content-Type': types[extension],
     'Cache-Control': isHtml ? 'no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600, must-revalidate',
     ETag: etag,
-    'Last-Modified': stat.mtime.toUTCString(),
+    'Last-Modified': mtime.toUTCString(),
     'X-Content-Type-Options': 'nosniff'
   };
   if (request.headers['if-none-match'] === etag) { response.writeHead(304, headers); return response.end(); }
 
-  if (isHtml) recordView(url, request).catch(() => {});
+  if (isHtml && status === 200) recordView(url, request).catch(() => {});
 
   const wantsGzip = /\bgzip\b/.test(request.headers['accept-encoding'] || '') && (isHtml || compressible.has(extension));
   if (wantsGzip) {
     const zipped = zlib.gzipSync(Buffer.from(body));
-    response.writeHead(200, { ...headers, 'Content-Encoding': 'gzip', 'Content-Length': zipped.length, Vary: 'Accept-Encoding' });
+    response.writeHead(status, { ...headers, 'Content-Encoding': 'gzip', 'Content-Length': zipped.length, Vary: 'Accept-Encoding' });
     return response.end(request.method === 'HEAD' ? undefined : zipped);
   }
   const buffer = Buffer.from(body);
-  response.writeHead(200, { ...headers, 'Content-Length': buffer.length });
+  response.writeHead(status, { ...headers, 'Content-Length': buffer.length });
   response.end(request.method === 'HEAD' ? undefined : buffer);
 }
 
@@ -307,7 +385,7 @@ async function recordView(url, request) {
   try {
     const referrer = request.headers.referer ? new URL(request.headers.referer).host : '';
     const self = String(request.headers.host || '');
-    const page = (url.pathname + (url.searchParams.get('page') ? `?page=${url.searchParams.get('page')}` : '')).slice(0, 120);
+    const page = (url.pathname.replace(/\/+$/, '') || '/').slice(0, 120);
     await store.recordView(new Date().toISOString().slice(0, 10), page, referrer === self ? '' : referrer.slice(0, 80));
   } catch { /* analytics must never break a page */ }
 }
@@ -493,19 +571,35 @@ async function handler(request, response) {
 
     if (url.pathname === '/robots.txt') {
       response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return response.end(`User-agent: *\nDisallow: /admin.html\nDisallow: /api/\nSitemap: ${origin(request)}/sitemap.xml\n`);
+      return response.end(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: ${origin(request)}/sitemap.xml\n`);
     }
     if (url.pathname === '/sitemap.xml') {
       const base = origin(request);
       const published = await publicContent();
-      const urls = ['/', '/view.html?page=team', '/view.html?page=core', '/view.html?page=lab', '/view.html?page=programs', '/view.html?page=events', '/view.html?page=blog', '/view.html?page=partners', '/view.html?page=contact',
-        ...published.projects.map((item) => `/view.html?page=lab&case=${item.slug}`),
-        ...published.posts.map((item) => `/view.html?page=blog&post=${item.slug}`),
-        ...published.events.map((item) => `/view.html?page=events&event=${item.slug}`)];
+      const urls = ['/', ...sections.map((page) => `/${page}`),
+        ...published.projects.map((item) => `/lab/${encodeURIComponent(item.slug)}`),
+        ...published.posts.map((item) => `/blog/${encodeURIComponent(item.slug)}`),
+        ...published.events.map((item) => `/events/${encodeURIComponent(item.slug)}`)];
       response.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
       return response.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((entry) => `  <url><loc>${escapeXml(base + entry)}</loc></url>`).join('\n')}\n</urlset>\n`);
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') return respond(response, 405, { error: 'Method not allowed.' });
+
+    // One canonical URL per page. The old query-string and .html URLs still work, but they answer
+    // with a permanent redirect so links already in the wild consolidate rather than duplicate.
+    const legacy = legacyTarget(url);
+    if (legacy) {
+      response.writeHead(301, { Location: legacy, 'Cache-Control': 'public, max-age=3600' });
+      return response.end();
+    }
+    // A trailing slash is the same page, not a second one.
+    if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
+      response.writeHead(301, { Location: url.pathname.replace(/\/+$/, '') + (url.search || ''), 'Cache-Control': 'public, max-age=3600' });
+      return response.end();
+    }
+
+    const route = resolveRoute(url.pathname);
+    if (route) return sendPage(request, response, url, route);
     return sendStatic(request, response, url);
   } catch (error) {
     respond(response, 400, { error: error.message || 'Request failed.' });

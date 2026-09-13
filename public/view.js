@@ -1,23 +1,30 @@
 // Content comes from the server so the admin's publish state decides what exists here.
 let content = { projects: [], posts: [], events: [], tiers: [], spend: [], partners: [], orgTypes: [], supportKinds: [], resources: [], testimonials: [], programs: [], team: [], topics: [], faqs: [] };
-const params = new URLSearchParams(location.search);
+// Readable paths: /programs, /blog/<slug>. The server resolves the same path to the same page for
+// the share tags, so these two lists are mirrored in server.js — change them together.
+const sections = ['team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
+const hasDetail = ['lab', 'blog', 'events'];
+const route = (() => {
+  const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+  const page = sections.includes(parts[0]) ? parts[0] : 'core';
+  return { page, detail: hasDetail.includes(page) && parts[1] ? decodeURIComponent(parts[1]) : '' };
+})();
 const state = {
-  page: params.get('page') || 'core',
-  detail: params.get('case') || params.get('post') || params.get('event') || '',
+  page: route.page,
+  detail: route.detail,
   domain: 'All',
   category: 'All',
   tab: 'all',
   currency: 'NGN',
   topic: 'Join the community'
 };
-const order = ['team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
 const main = document.querySelector('#main');
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 }
 function hero(eyebrow, title, lede) {
-  const index = order.indexOf(state.page) + 1;
+  const index = sections.indexOf(state.page) + 1;
   return `<section class="page-hero dot-grid"><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p>${lede}</p>${index ? `<span class="page-index">/${String(index).padStart(2, '0')}</span>` : ''}</section>`;
 }
 function slot(hint, ratio = '16 / 9') {
@@ -27,7 +34,7 @@ function chips(items, key) {
   return `<div class="filter-bar" role="group">${items.map((item) => `<button class="chip" data-filter="${key}" data-value="${esc(item.value)}" aria-pressed="${item.on}">${esc(item.label)}${item.count === undefined ? '' : ` <b>${item.count}</b>`}</button>`).join('')}</div>`;
 }
 function backLink(page, label) {
-  return `<a class="back-link" href="view.html?page=${page}">← ${esc(label)}</a>`;
+  return `<a class="back-link" href="/${page}">← ${esc(label)}</a>`;
 }
 function callout(eyebrow, title, action) {
   return `<section class="detail-callout dot-grid"><p class="eyebrow">${eyebrow}</p><h2>${title}</h2>${action}</section>`;
@@ -59,7 +66,7 @@ function core() {
           : '<span class="status-line"><span class="dot tone-warm"></span>In preparation</span>'}</article>`).join('')}</div>`
         : '<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>The library is empty.</h3><p>Resources appear here as they are finished.</p></div></div>'}
     </section>` +
-    callout('START HERE', 'No fee.<br />No interview.<br /><em>Just begin.</em>', '<a class="button" href="flow.html?type=join">Join Synthavia Core <span>→</span></a>');
+    callout('START HERE', 'No fee.<br />No interview.<br /><em>Just begin.</em>', '<a class="button" href="/flow?type=join">Join Synthavia Core <span>→</span></a>');
 }
 
 function programs() {
@@ -83,10 +90,10 @@ function programs() {
         </div>
         <div class="program-foot">
           <p class="dates"><span>⌁</span> ${esc(program.dates)}</p>
-          <a class="button ${program.featured ? '' : 'button-quiet'}" href="flow.html?type=apply&amp;track=${program.slug}">${esc(program.action)} <span>→</span></a>
+          <a class="button ${program.featured ? '' : 'button-quiet'}" href="/flow?type=apply&amp;track=${program.slug}">${esc(program.action)} <span>→</span></a>
         </div></article>`).join('')}</div>
     </section>` +
-    callout('APPLICATIONS', 'Three steps.<br /><em>A careful read.</em>', '<a class="button" href="flow.html?type=apply">Start an application <span>→</span></a>');
+    callout('APPLICATIONS', 'Three steps.<br /><em>A careful read.</em>', '<a class="button" href="/flow?type=apply">Start an application <span>→</span></a>');
 }
 
 function contact() {
@@ -139,7 +146,7 @@ function team() {
           <p>We publish a person only with their own name, role and consent — so this stays empty until each profile is written and approved. Profiles are added in the admin.</p></div></div>`}
       <p class="honesty"><span>⌁</span> Every person listed here owns something on this site. If a name appears, there is work behind it.</p>
     </section>` +
-    callout('WORK WITH US', 'The next name here<br /><em>could be yours.</em>', '<a class="button" href="flow.html?type=apply">See open programs <span>→</span></a>');
+    callout('WORK WITH US', 'The next name here<br /><em>could be yours.</em>', '<a class="button" href="/flow?type=apply">See open programs <span>→</span></a>');
 }
 
 /* ---------- Lab ---------- */
@@ -158,11 +165,11 @@ function labIndex() {
           <p class="project-result">${esc(project.result)}</p>
           <div class="project-metric"><b class="tone-${project.tone}">${esc(project.metric)}</b><small>${esc(project.metricLabel)}</small></div>
           <p class="status-line"><span class="dot tone-${project.tone}"></span>${esc(project.status)}</p>
-          <a href="view.html?page=lab&case=${project.slug}">Read the case study <span>→</span></a>
+          <a href="/lab/${project.slug}">Read the case study <span>→</span></a>
         </div></article>`).join('')}</div>
       <p class="honesty"><span>⌁</span> Two more projects are in scoping (education assessment, market-price forecasting). They appear here once they have a written problem statement and an owner.</p>
     </section>` +
-    callout('HAVE A FIELD PROBLEM?', 'Bring the question.<br /><em>We’ll test the fit.</em>', '<a class="button" href="view.html?page=contact">Propose research <span>→</span></a>');
+    callout('HAVE A FIELD PROBLEM?', 'Bring the question.<br /><em>We’ll test the fit.</em>', '<a class="button" href="/contact">Propose research <span>→</span></a>');
 }
 
 function caseStudy(project) {
@@ -186,7 +193,7 @@ function caseStudy(project) {
         ${slot(project.photoHint, '4 / 3')}
         <div class="fact-card"><p class="tag">PROJECT FACTS</p><dl>${project.facts.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></div>
         <div class="fact-card accent"><p class="tag">ONE-PAGER</p><p>Problem, method, metrics and contact on a single printable page — for partners, funders and extension services.</p><button class="button button-quiet" data-toast="The one-pager PDF is generated from this page at build time — not wired up in the prototype.">Download PDF <span>↓</span></button></div>
-        <div class="fact-card"><p class="tag">WORK ON THIS</p><p>Data collection, annotation and engineering are all open to Core members.</p><a class="arrow-link" href="flow.html?type=join">Join the project channel <span>→</span></a></div>
+        <div class="fact-card"><p class="tag">WORK ON THIS</p><p>Data collection, annotation and engineering are all open to Core members.</p><a class="arrow-link" href="/flow?type=join">Join the project channel <span>→</span></a></div>
       </aside>
     </section>`;
 }
@@ -201,15 +208,15 @@ function blogIndex() {
   return hero('BLOG &amp; INSIGHTS', 'Notes from the frontier<br />of <em>African AI.</em>', 'Build notes, dataset releases, cohort write-ups and the occasional strong opinion. We publish when there is something to say — no content calendar theatre.') +
     `<section class="index-section">
       ${chips(categories.map((value) => ({ value, label: value, on: state.category === value, count: value === 'All' ? content.posts.length : content.posts.filter((post) => post.category === value).length })), 'category')}
-      ${featured ? `<a class="featured-post" href="view.html?page=blog&post=${featured.slug}">
+      ${featured ? `<a class="featured-post" href="/blog/${featured.slug}">
         <div>${slot('Lead image for the featured post', '3 / 2')}</div>
         <div class="featured-copy"><p class="tag">${esc(featured.category)} · ${esc(featured.date)} · ${esc(featured.read)} READ</p><h2>${esc(featured.title)}</h2><p>${esc(featured.dek)}</p>
           <p class="byline"><span class="avatar">${esc(featured.initials)}</span>${esc(featured.author)}</p><span class="arrow-link">Read <span>→</span></span></div></a>` : ''}
-      <div class="card-grid">${rest.map((post) => `<a class="post-card" href="view.html?page=blog&post=${post.slug}">
+      <div class="card-grid">${rest.map((post) => `<a class="post-card" href="/blog/${post.slug}">
         ${slot(post.title, '16 / 10')}
         <div class="post-card-body"><p class="tag">${esc(post.category)} · ${esc(post.date)} · ${esc(post.read)}</p><h3>${esc(post.title)}</h3><p>${esc(post.dek)}</p><small>${esc(post.author)}</small></div></a>`).join('')}</div>
       <div class="archive-end"><span>◌</span><div><p class="tag">END OF THE ARCHIVE</p><h3>That is everything we have published.</h3><p>${content.posts.length} ${content.posts.length === 1 ? 'post' : 'posts'}, all of them real. Anything still being written stays in the admin until it is finished — no teaser cards here.</p></div>
-        <a class="arrow-link" href="view.html?page=contact">Pitch us a guest post <span>→</span></a></div>
+        <a class="arrow-link" href="/contact">Pitch us a guest post <span>→</span></a></div>
       <form class="newsletter" data-form="Newsletter signup" data-source="Blog"><div><p class="eyebrow">GET NEW POSTS BY EMAIL</p><h3>One email per post,<br />plus a monthly roundup.</h3><p>Unsubscribe in one click.</p></div>
         <div class="newsletter-field"><label>Email address<input required type="email" name="email" placeholder="you@example.com" /></label><button class="button" type="submit">Subscribe <span>→</span></button><p class="form-note"></p></div></form>
     </section>`;
@@ -234,7 +241,7 @@ function article(post) {
       </div>
       <aside class="article-aside">
         <div class="fact-card toc-card"><p class="tag">IN THIS ARTICLE</p><ol class="toc">${post.body.map((section) => `<li><a href="#s-${esc(section.h).replace(/\W+/g, '-').toLowerCase()}">${esc(section.h)}</a></li>`).join('')}</ol></div>
-        ${project ? `<div class="fact-card accent"><p class="tag">THE PROJECT</p><h3>${esc(project.title)}</h3><p>${esc(post.projectNote)}</p><a class="arrow-link" href="view.html?page=lab&case=${project.slug}">Open the case study <span>→</span></a></div>` : ''}
+        ${project ? `<div class="fact-card accent"><p class="tag">THE PROJECT</p><h3>${esc(project.title)}</h3><p>${esc(post.projectNote)}</p><a class="arrow-link" href="/lab/${project.slug}">Open the case study <span>→</span></a></div>` : ''}
         <form class="fact-card" data-form="Newsletter signup" data-source="Article"><p class="tag">GET NEW POSTS</p><label>Email address<input required type="email" name="email" placeholder="you@example.com" /></label><button class="button button-quiet" type="submit">Subscribe <span>→</span></button><p class="form-note"></p></form>
       </aside>
     </section>`;
@@ -259,7 +266,7 @@ function eventsIndex() {
           <p>${esc(event.blurb)}</p>
           <dl class="event-meta"><div><dt>Date</dt><dd>${esc(event.date)}</dd></div><div><dt>Venue</dt><dd>${esc(event.venue)}</dd></div><div><dt>Format</dt><dd>${esc(event.format)}</dd></div></dl>
           <div class="chip-row">${event.chips.map((chip) => `<span class="chip static">${esc(chip)}</span>`).join('')}</div>
-          <a class="arrow-link" href="view.html?page=events&event=${event.slug}">${event.hasGallery ? 'Full recap' : 'Event page'} <span>→</span></a></div></article>`).join('')}</div>
+          <a class="arrow-link" href="/events/${event.slug}">${event.hasGallery ? 'Full recap' : 'Event page'} <span>→</span></a></div></article>`).join('')}</div>
     </section>`;
 }
 
@@ -271,7 +278,7 @@ function eventPage(event) {
       <h1>${esc(event.title)}<br /><em>${esc(event.subtitle)}</em></h1>
       <dl class="event-meta wide"><div><dt>Date</dt><dd>${esc(event.date)}</dd></div><div><dt>Venue</dt><dd>${esc(event.venue)}</dd></div><div><dt>Format</dt><dd>${esc(event.format)}</dd></div></dl>
       ${isFuture ? `<div class="countdown" data-countdown="${esc(event.startsAt)}"></div>` : ''}
-      <div class="hero-actions">${isFuture ? '<a class="button" href="flow.html?type=join">Register <span>→</span></a>' : '<button class="button" data-toast="The recording archive is published five days after each event.">Watch the recordings <span>↗</span></button>'}
+      <div class="hero-actions">${isFuture ? '<a class="button" href="/flow?type=join">Register <span>→</span></a>' : '<button class="button" data-toast="The recording archive is published five days after each event.">Watch the recordings <span>↗</span></button>'}
         <button class="button button-quiet" data-toast="The agenda PDF is generated from the published agenda at launch.">Download agenda (PDF) <span>↓</span></button></div>
     </section>
     ${event.agenda ? `<section class="detail-block event-detail"><div><p class="eyebrow">AGENDA</p><h2>Two days,<br />four tracks.</h2>
@@ -351,12 +358,9 @@ function markup() {
   return pages[state.page] ? pages[state.page]() : core();
 }
 
-const titles = { team: 'About & team', core: 'Synthavia Core', lab: 'Synthavia Lab', programs: 'Synthavia Programs', events: 'Events', blog: 'Blog', partners: 'Partners', contact: 'Contact' };
-
 function render() {
   main.innerHTML = markup();
-  const detail = content.projects.concat(content.posts, content.events).find((item) => item.slug === state.detail);
-  document.title = `${detail ? detail.title : titles[state.page] || 'Synthavia AI'} — Synthavia AI`;
+  // The document title is set by the server, which knows the same page and slug — see shareTags().
   main.querySelectorAll('[data-countdown]').forEach(startCountdown);
   fillChannels();
   window.SynthaviaApp?.translate(main);

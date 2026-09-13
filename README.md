@@ -8,7 +8,7 @@ npm run migrate   # once: creates the schema and seeds content
 npm start
 ```
 
-Open `http://127.0.0.1:4174`. The first visit to `/admin.html` creates the owner account; or set
+Open `http://127.0.0.1:4174`. The first visit to `/admin` creates the owner account; or set
 `SYNTHAVIA_ADMIN_EMAIL` and `SYNTHAVIA_ADMIN_PASSWORD` to create it on boot. Run `npm test` for the
 test suite.
 
@@ -17,24 +17,39 @@ test suite.
 | Route | What it is |
 | --- | --- |
 | `/` | Home — hero (EN/PCM/IG), signed-off stats bar, ecosystem, case study, programs, events, partners, blog strip, contact |
-| `view.html?page=team` | About & team — profiles with photos, managed in the admin |
-| `view.html?page=core` | Community programs and cadence |
-| `view.html?page=lab` | Filterable project index |
-| `view.html?page=lab&case=<slug>` | Case study: problem, approach, outcome, metrics with sources, what we cannot claim yet |
-| `view.html?page=programs` | Three tracks with curriculum, eligibility, cohort facts, dates and cost |
-| `view.html?page=events` | Event list with tabs and the honest upcoming empty state |
-| `view.html?page=events&event=<slug>` | Single event: agenda, livestream, speakers, recap gallery |
-| `view.html?page=blog` | Featured post, category filters, end-of-archive card, newsletter |
-| `view.html?page=blog&post=<slug>` | Article template with contents sidebar and pull quotes |
-| `view.html?page=partners` | Five tiers in ₦ or $, where the money goes, empty partners grid, partner application |
-| `view.html?page=contact` | Topic-routed form with live reply times, newsletter opt-in, location, direct channels, quick answers, data note |
-| `flow.html?type=join\|apply` | Join Core (one step, ends in the community rooms) and the three-step application |
-| `admin.html` | Unlisted. Dashboard, submissions, stat sign-off, and editable events / posts / partners / projects |
-| `system.html` | Design system reference — live tokens, type scale, components, the honesty rules. Not linked from the public nav |
+| `/team` | About & team — profiles with photos, managed in the admin |
+| `/core` | Community programs and cadence |
+| `/lab` | Filterable project index |
+| `/lab/<slug>` | Case study: problem, approach, outcome, metrics with sources, what we cannot claim yet |
+| `/programs` | Three tracks with curriculum, eligibility, cohort facts, dates and cost |
+| `/events` | Event list with tabs and the honest upcoming empty state |
+| `/events/<slug>` | Single event: agenda, livestream, speakers, recap gallery |
+| `/blog` | Featured post, category filters, end-of-archive card, newsletter |
+| `/blog/<slug>` | Article template with contents sidebar and pull quotes |
+| `/partners` | Five tiers in ₦ or $, where the money goes, empty partners grid, partner application |
+| `/contact` | Topic-routed form with live reply times, newsletter opt-in, location, direct channels, quick answers, data note |
+| `/flow?type=join\|apply` | Join Core (one step, ends in the community rooms) and the three-step application |
+| `/admin` | Unlisted. Dashboard, submissions, stat sign-off, and editable events / posts / partners / projects |
+| `/system` | Design system reference — live tokens, type scale, components, the honesty rules. Not linked from the public nav |
 
 ## Layout
 
-Everything reachable over HTTP lives in `public/`. `server.js`, `db.js`, `notify.js`, `content.json`, `data/` and this README sit outside it, so no request path can resolve to server code, the content seed or the database — the static handler simply has nothing else in scope.
+`public/` holds the assets — CSS, client JS, images — and nothing else. `views/` holds the HTML templates. `server.js`, `db.js`, `notify.js`, `content.json`, `data/` and this README sit outside both, so no request path can resolve to server code, the content seed or the database: the static handler has nothing else in scope, and it refuses `.html` outright.
+
+### Why `views/` is not inside `public/`
+
+`public/` is Vercel's static output directory, and its CDN answers any file it finds there **before** a rewrite in `vercel.json` is consulted. While the templates lived in `public/`, every page was served raw off the CDN and the function never ran — so in production there were no Open Graph tags, no canonical URL, no JSON-LD and no page-view counts, while everything looked perfect locally. Nothing errors when this happens; the page just quietly lacks its `<head>`.
+
+Templates therefore live in `views/`, which is not published as static output, and a test asserts that `public/` contains no `.html` file. Do not move one back.
+
+## URLs
+
+Every page has one readable path — `/programs`, `/blog/<slug>` — and one canonical URL. There is no query-string routing left.
+
+- `resolveRoute()` in `server.js` maps a path to a template; `public/view.js` derives the same page from `location.pathname`. The `sections` and `detailOf` lists are mirrored in the two files — **change them together.**
+- The old URLs (`/view.html?page=…`, `/index.html`, `/admin.html`, a trailing slash) answer `301` to the readable path, carrying over any non-routing query string such as `?type=apply` or a campaign tag.
+- Links in templates and in JS must be root-absolute (`/lab`, not `lab.html`). A relative reference on `/blog/<slug>` would resolve under `/blog/`.
+- An unknown path gets `views/404.html` with a real `404` status and `noindex`; unknown `/api/*` paths still answer JSON.
 
 ## Storage
 
@@ -86,12 +101,14 @@ Self-hosted and privacy-respecting: the server counts a path, a day and the refe
 
 ## Deployment (Vercel)
 
-`api/index.js` is the entry point: Vercel invokes the exported request handler per request instead of keeping a listening server. `vercel.json` rewrites the server-rendered routes (`/`, the HTML pages, `robots.txt`, `sitemap.xml`, `/api/*`) to that function; everything else in `public/` is served straight from the CDN. `includeFiles` bundles `public/**` with the function, because the HTML is read from disk to inject share tags.
+Framework preset **Other**, root directory the repository root, no build command.
+
+`api/index.js` is the entry point: Vercel invokes the exported request handler per request instead of keeping a listening server. `vercel.json` rewrites everything to that function; the rewrite is only reached for paths that are *not* a file in `public/`, so assets still come straight from the CDN while every page goes through the server. `includeFiles` bundles `views/**`, `public/**` and `content.json` with the function, because the templates are read from disk to inject the title, description and share tags.
 
 1. Import the repo in Vercel.
 2. Add every variable from `.env` under Settings → Environment Variables, with `TRUST_PROXY=1`.
 3. Run `npm run migrate` once against the production database (locally with the same `POSTGRES_URL`).
-4. Deploy, then open `/admin.html` to create the owner account.
+4. Deploy, then open `/admin` to create the owner account.
 
 Security headers (HSTS, `X-Frame-Options`, `nosniff`, referrer policy) are set in `vercel.json`.
 
@@ -154,11 +171,12 @@ Link unfurlers and crawlers do not run the client router, so `shareTags()` in `s
 - `server.js` — Node http server, no dependencies. Static files, `/api/stats`, `/api/submissions`, and the `/api/admin/*` endpoints.
 - `content.json` — the seed content store, read by the server and never served directly.
 - `app.js` — theme, language, forms, toasts and the stats bar; shared by every public page.
-- `view.js` — client router for the subpages and their detail templates.
+- `view.js` — client router for the subpages and their detail templates; reads the page from `location.pathname`.
 - `notify.js` — outbound email: composes both messages, sends when configured, queues to `data/outbox.json` when not.
 - `flow.js`, `admin.js` — the application flows and the admin (content, stat sign-off, community links, outbox).
 - `public/logo*.png`, `public/share.png` — the official mark at 512/192/64/32 and the link-preview card, all built by `tools/make-brand-assets.py`.
-- `public/` — everything served over HTTP, and nothing else. `styles.css` is the original page styling. `pages.css` — components added for Lab, Blog, Events, Partners and Admin, plus the responsive layer.
+- `public/` — assets only, never HTML. `styles.css` is the original page styling. `pages.css` — components added for Lab, Blog, Events, Partners and Admin, plus the responsive layer.
+- `views/` — the HTML templates, including `404.html`. Not static output; served only through the server. See "Why `views/` is not inside `public/`".
 
 **A trap in `styles.css`:** its first `@media (max-width: 800px)` block sits *above* the detail-page rules it targets (`.detail-block`, `.cadence`, `.track-list`, `.page-hero:after`, `.detail-contact`). Same specificity, later wins — so those overrides never applied and those sections stayed multi-column on phones. They are re-stated at the end of `pages.css`, which loads last. Put new mobile rules there, not in that block.
 
@@ -192,6 +210,6 @@ Still outstanding before this is a finished business front:
 - **Two figures** ("talents trained", "partner organisations") remain unsigned and render as em dashes by design.
 - **Configuration.** The WhatsApp and GitHub room links, and an email endpoint and key, are all blank until set.
 - **Native review** of the Pidgin and Igbo drafts.
-- **Not built:** clean URLs (`/lab/<slug>` instead of `view.html?page=lab&case=<slug>`), a service worker for offline/low-bandwidth use, and security headers (CSP, HSTS) which are best set at the reverse proxy.
+- **Not built:** a service worker for offline/low-bandwidth use, and a Content-Security-Policy header (the other security headers are set in `vercel.json`).
 
 Still outstanding from the design brief: speaker headshots, AI of Things photos and the logo SVG (every image slot is marked in the UI), plus sign-off on the "talents trained" and "partner organisations" figures.

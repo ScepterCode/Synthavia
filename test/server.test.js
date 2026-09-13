@@ -19,7 +19,7 @@ let child;
 
 // A copy of the project with its own empty data directory: the real one is never touched.
 function prepareSandbox() {
-  for (const entry of ['server.js', 'db.js', 'notify.js', 'migrate.js', 'content.json', 'public', 'node_modules']) {
+  for (const entry of ['server.js', 'db.js', 'notify.js', 'migrate.js', 'content.json', 'public', 'views', 'node_modules']) {
     fs.cpSync(path.join(projectRoot, entry), path.join(sandbox, entry), { recursive: true });
   }
   fs.mkdirSync(path.join(sandbox, 'data'), { recursive: true });
@@ -227,18 +227,72 @@ test('every submission queues an acknowledgement and a team notification', async
 });
 
 test('share tags and sitemap describe only published content', async () => {
-  const page = (await call('/view.html?page=blog&post=no-wrapper')).body;
+  const page = (await call('/blog/no-wrapper')).body;
   assert.match(page, /og:title" content="African AI does not need another wrapper/);
   assert.match(page, /application\/ld\+json/);
+  assert.match(page, /<title>African AI does not need another wrapper/, 'the title must be in the markup, not only set by JS');
+  assert.match(page, /rel="canonical" href="[^"]*\/blog\/no-wrapper"/);
   const sitemap = (await call('/sitemap.xml')).body;
   assert.ok(!sitemap.includes('cohort-03-retro'), 'a draft post must not be listed in the sitemap');
-  assert.match((await call('/robots.txt')).body, /Disallow: \/admin\.html/);
+  assert.ok(sitemap.includes('<loc>' + base + '/programs</loc>'), 'the sitemap must list readable paths');
+  assert.ok(!sitemap.includes('view.html'), 'no query-string URLs in the sitemap');
+  assert.match((await call('/robots.txt')).body, /Disallow: \/admin/);
+});
+
+/* ---------- Readable URLs ---------- */
+
+test('every section and detail page answers on its own path', async () => {
+  for (const route of ['/', '/team', '/core', '/lab', '/programs', '/events', '/blog', '/partners', '/contact',
+                       '/admin', '/flow', '/system', '/blog/no-wrapper', '/lab/cassava-disease-vision']) {
+    const response = await call(route);
+    assert.equal(response.status, 200, `${route} should be a page`);
+    assert.match(response.body, /<!doctype html>/i, `${route} should return HTML`);
+  }
+});
+
+test('the old query-string URLs redirect once to the readable path', async () => {
+  const cases = [
+    ['/view.html?page=programs', '/programs'],
+    ['/view.html?page=blog&post=no-wrapper', '/blog/no-wrapper'],
+    ['/view.html?page=lab&case=cassava-disease-vision', '/lab/cassava-disease-vision'],
+    ['/index.html', '/'],
+    ['/admin.html', '/admin'],
+    ['/programs/', '/programs'],
+    // A query string that is not routing has to survive the redirect.
+    ['/flow.html?type=apply', '/flow?type=apply'],
+    ['/view.html?page=blog&post=no-wrapper&utm_source=x', '/blog/no-wrapper?utm_source=x']
+  ];
+  for (const [from, to] of cases) {
+    const response = await fetch(base + from, { redirect: 'manual' });
+    assert.equal(response.status, 301, `${from} should redirect permanently`);
+    assert.equal(response.headers.get('location'), to, `${from} should land on ${to}`);
+  }
+});
+
+test('an unknown path gets the site 404 page, not raw JSON', async () => {
+  const response = await call('/no-such-page');
+  assert.equal(response.status, 404);
+  assert.match(response.body, /This page does not exist/);
+  assert.match(response.body, /name="robots" content="noindex"/);
+  // The API keeps answering in JSON — only pages get the HTML treatment.
+  const api = await call('/api/no-such-endpoint');
+  assert.equal(api.status, 404);
+  assert.equal(typeof api.body, 'object');
+});
+
+test('no HTML template sits in public/', () => {
+  // This is the trap that silently broke production: public/ is Vercel's static output directory,
+  // and its CDN answers any file there before a rewrite is consulted. An .html file in public/ is
+  // therefore served raw — skipping the share tags, the canonical URL and the view counter, with
+  // no error anywhere. Templates belong in views/.
+  const stray = fs.readdirSync(path.join(projectRoot, 'public')).filter((name) => name.endsWith('.html'));
+  assert.deepEqual(stray, [], 'move these into views/');
 });
 
 /* ---------- Static serving ---------- */
 
 test('server source and the data store are unreachable over HTTP', async () => {
-  for (const route of ['/server.js', '/db.js', '/notify.js', '/content.json', '/.env', '/../server.js']) {
+  for (const route of ['/server.js', '/db.js', '/notify.js', '/content.json', '/.env', '/../server.js', '/views/view.html', '/../views/view.html']) {
     assert.equal((await call(route)).status, 404, `${route} must not be served`);
   }
 });

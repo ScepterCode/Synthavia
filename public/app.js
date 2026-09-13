@@ -178,7 +178,7 @@ document.addEventListener('submit', async (event) => {
   try {
     const result = await post(payload);
     if (payload.type === 'Partner enquiry') {
-      form.innerHTML = `<div class="form-success"><p class="tag">✓ THANK YOU — THIS IS WITH OUR PARTNERSHIPS LEAD</p><h3>Reference ${result.id}</h3><p>Nothing goes public until you approve the wording and the agreement is countersigned. You will hear from us within five working days.</p><a class="arrow-link" href="view.html?page=partners">Send another enquiry <span>→</span></a></div>`;
+      form.innerHTML = `<div class="form-success"><p class="tag">✓ THANK YOU — THIS IS WITH OUR PARTNERSHIPS LEAD</p><h3>Reference ${result.id}</h3><p>Nothing goes public until you approve the wording and the agreement is countersigned. You will hear from us within five working days.</p><a class="arrow-link" href="/partners">Send another enquiry <span>→</span></a></div>`;
       return;
     }
     if (payload.type === 'Newsletter signup') {
@@ -241,7 +241,7 @@ async function renderTestimonials() {
       ? `<div class="quote-grid">${testimonials.map((item) => `<figure><blockquote>${item.quote}</blockquote><figcaption><b>${item.name}</b><span>${item.role}</span></figcaption></figure>`).join('')}</div>`
       : `<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>No quotes are up yet.</h3>
           <p>We publish a member's words only with their name, their role and their permission. Approved quotes appear here — invented ones never will.</p></div>
-          <a class="button button-quiet" href="flow.html?type=join">Join Core <span>→</span></a></div>`;
+          <a class="button button-quiet" href="/flow?type=join">Join Core <span>→</span></a></div>`;
     markCurrency(target);
   } catch { target.innerHTML = ''; }
 }
