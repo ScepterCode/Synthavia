@@ -24,6 +24,7 @@ const host = process.env.HOST || '127.0.0.1';
 // so its headers are trustworthy without being asked. Behind any other proxy, set TRUST_PROXY=1 —
 // without it the canonical URL claims http:// and every visitor shares one rate-limit bucket.
 const trustProxy = process.env.TRUST_PROXY === '1' || Boolean(process.env.VERCEL);
+const siteUrl = (process.env.SITE_URL || '').trim().replace(/\/+$/, '');
 const sessionLife = 1000 * 60 * 60 * 8;
 const backupHours = Number(process.env.SYNTHAVIA_BACKUP_HOURS || 6);
 
@@ -81,7 +82,12 @@ function readBody(request, limit = 20_000) {
 function safeText(value, limit = 500) { return String(Array.isArray(value) ? value.join(', ') : value ?? '').trim().slice(0, limit); }
 function slugify(value) { return safeText(value, 80).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 function escapeXml(value) { return String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]); }
+// The absolute base for canonical URLs, og:url, the sitemap and robots.txt. A Vercel project answers
+// on its *.vercel.app domain as well as the real one, so without SITE_URL the same page would offer
+// two self-referencing canonicals and search engines would index both copies. Set SITE_URL to the
+// domain the site actually lives on and every absolute URL points there, whichever host was asked.
 function origin(request) {
+  if (siteUrl) return siteUrl;
   const proto = trustProxy ? (request.headers['x-forwarded-proto'] || 'https').split(',')[0].trim() : 'http';
   return `${proto}://${request.headers.host}`;
 }

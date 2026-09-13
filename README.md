@@ -50,6 +50,7 @@ Every page has one readable path — `/programs`, `/blog/<slug>` — and one can
 - The old URLs (`/view.html?page=…`, `/index.html`, `/admin.html`, a trailing slash) answer `301` to the readable path, carrying over any non-routing query string such as `?type=apply` or a campaign tag.
 - Links in templates and in JS must be root-absolute (`/lab`, not `lab.html`). A relative reference on `/blog/<slug>` would resolve under `/blog/`.
 - An unknown path gets `views/404.html` with a real `404` status and `noindex`; unknown `/api/*` paths still answer JSON.
+- `SITE_URL` fixes the canonical host. A Vercel project also answers on its `*.vercel.app` domain, so without it the same page offers two self-referencing canonicals and both copies can be indexed.
 
 ## Storage
 

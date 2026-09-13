@@ -30,7 +30,9 @@ async function boot() {
     cwd: sandbox,
     env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', PGSCHEMA: testSchema, SYNTHAVIA_BACKUP_HOURS: '0',
            SYNTHAVIA_ADMIN_EMAIL: owner.email, SYNTHAVIA_ADMIN_PASSWORD: owner.password, SYNTHAVIA_ADMIN_NAME: owner.name,
-           SYNTHAVIA_RATE_SUBMIT: '40', SYNTHAVIA_RATE_LOGIN: '60', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '' },
+           SYNTHAVIA_RATE_SUBMIT: '40', SYNTHAVIA_RATE_LOGIN: '60', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '',
+           // Absolute URLs must come from the test host, not from whatever the developer's .env points at.
+           SITE_URL: '' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let childLog = '';
