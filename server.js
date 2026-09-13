@@ -46,12 +46,15 @@ const seedStats = [
   { key: 'trained', label: 'Talents trained', usedOn: 'Impact grid', value: '', source: 'Attendance audit incomplete', signedOff: false },
   { key: 'partners', label: 'Partner organisations', usedOn: 'Impact grid, partners strip', value: '', source: 'No signed MOU', signedOff: false }
 ];
+// The organisation's public inbox. One address serves every topic today; the three settings below
+// stay separate so a desk can be split off later without touching any code.
+const contactEmail = 'synthaviacore@gmail.com';
 const seedSettings = [
-  { key: 'whatsapp', label: 'WhatsApp community room', hint: 'Invite link — https://chat.whatsapp.com/…', value: '', url: true },
-  { key: 'github', label: 'GitHub organisation', hint: 'https://github.com/…', value: '', url: true },
-  { key: 'teamEmail', label: 'General inbox', hint: 'Where contact messages are notified', value: 'hello@synthavia.ai' },
-  { key: 'programsEmail', label: 'Programs inbox', hint: 'Applications and Core signups', value: 'programs@synthavia.ai' },
-  { key: 'partnersEmail', label: 'Partnerships inbox', hint: 'Partner enquiries', value: 'partners@synthavia.ai' }
+  { key: 'whatsapp', label: 'WhatsApp community room', hint: 'Invite link — https://chat.whatsapp.com/…', value: 'https://chat.whatsapp.com/FBcrmW1Gmha6stoOnTPK1s', url: true },
+  { key: 'github', label: 'GitHub organisation', hint: 'Leave blank while access is by manual invite — an empty value hides the link rather than publishing a dead one', value: '', url: true },
+  { key: 'teamEmail', label: 'General inbox', hint: 'Where contact messages are notified', value: contactEmail },
+  { key: 'programsEmail', label: 'Programs inbox', hint: 'Applications and Core signups', value: contactEmail },
+  { key: 'partnersEmail', label: 'Partnerships inbox', hint: 'Partner enquiries', value: contactEmail }
 ];
 
 const collections = {
@@ -269,7 +272,7 @@ async function shareTags(request, url, route) {
   let title = 'Synthavia AI — From Abia, for Africa';
   let description = "Building Africa's AI future from Abia. We train the talent, run the research, and ship AI that works for African realities.";
   let type = 'website';
-  let schema = { '@context': 'https://schema.org', '@type': 'Organization', name: site, url: base, description, address: { '@type': 'PostalAddress', addressLocality: 'Aba', addressRegion: 'Abia State', addressCountry: 'NG' }, foundingDate: '2025' };
+  let schema = { '@context': 'https://schema.org', '@type': 'Organization', name: site, url: base, description, address: { '@type': 'PostalAddress', streetAddress: '44b Aba Owerri Road', addressLocality: 'Aba', addressRegion: 'Abia State', addressCountry: 'NG' }, email: contactEmail, foundingDate: '2025' };
 
   if (route && route.page) {
     const published = await publicContent();
@@ -546,8 +549,15 @@ async function handler(request, response) {
         return respond(response, 201, await saveImage(await readBody(request, 6_000_000)));
       }
       if (url.pathname === '/api/admin/outbox') {
-        if (request.method === 'GET') return respond(response, 200, { messages: await store.outbox(), configured: notify.configured });
+        if (request.method === 'GET') return respond(response, 200, { messages: await store.outbox(), configured: notify.configured, from: notify.from });
         if (request.method === 'POST') return respond(response, 200, await notify.retry());
+      }
+      // Proving delivery should not require waiting for a stranger to fill in a form.
+      if (url.pathname === '/api/admin/email-test' && request.method === 'POST') {
+        const input = await readBody(request);
+        const recipient = safeText(input.email, 160).toLowerCase() || user.email;
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) return respond(response, 400, { error: 'That is not an email address.' });
+        return respond(response, 200, await notify.sendTest(recipient));
       }
       if (url.pathname === '/api/admin/analytics' && request.method === 'GET') {
         return respond(response, 200, await store.viewStats(Number(url.searchParams.get('days')) || 30));

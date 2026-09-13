@@ -98,7 +98,7 @@ function programs() {
 
 function contact() {
   const topic = content.topics.find((item) => item.label === state.topic) || content.topics[0];
-  return hero('CONTACT', 'Say hello — in whichever<br />language you prefer.', 'Pick a topic and your message goes to the right person, not a shared inbox nobody reads. English, Pidgin and Igbo are all welcome.') +
+  return hero('CONTACT', 'Say hello — in whichever<br />language you prefer.', 'Pick a topic and your message arrives tagged, so it reaches the right person instead of sitting in a queue. English, Pidgin and Igbo are all welcome.') +
     `<section class="contact detail-contact">
       <div>
         <p class="eyebrow">WRITE TO US</p><h2>We read<br />every message.</h2>
@@ -117,9 +117,9 @@ function contact() {
     </section>
     <section class="index-section contact-extras">
       <div class="contact-grid">
-        <article class="fact-card">${slot('Map embed · Aba, Abia State', '4 / 3')}
-          <p class="tag">WHERE WE ARE</p><h3>Aba, Abia State,<br />Nigeria.</h3>
-          <p class="muted">Full street address is published once the community space lease is signed — we do not list an address we cannot receive you at.</p>
+        <article class="fact-card">${slot('Map embed · 44b Aba Owerri Road, Aba', '4 / 3')}
+          <p class="tag">WHERE WE ARE</p><h3>44b Aba Owerri Road,<br />Aba, Abia State.</h3>
+          <p class="muted">Nigeria. Come by during office hours — tell us you are coming and someone will be expecting you.</p>
           <p class="muted"><b>Office hours</b> · Mon–Fri, 9:00–17:00 WAT</p></article>
         <article class="fact-card"><p class="tag">DIRECT CHANNELS</p><dl class="channel-list" id="channelList"></dl></article>
         <article class="fact-card"><p class="tag">QUICK ANSWERS</p><dl class="faq-list">${content.faqs.map((item) => `<div><dt>${esc(item.q)}</dt><dd>${esc(item.a)}</dd></div>`).join('')}</dl></article>
@@ -374,15 +374,19 @@ async function fillChannels() {
   if (!list) return;
   try {
     const { settings } = await (await fetch('/api/settings')).json();
-    const rows = [
-      ['General', settings.teamEmail],
-      ['Partnerships', settings.partnersEmail],
-      ['Programs', settings.programsEmail],
-      ['Community', settings.whatsapp ? 'WhatsApp group' : '']
-    ].filter(([, value]) => value);
-    list.innerHTML = rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd>${key === 'Community'
-      ? `<a href="${esc(settings.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp group ↗</a>`
-      : `<a href="mailto:${esc(value)}">${esc(value)}</a>`}</dd></div>`).join('')
+    // Several topics can share one address. Listing it once under every label it covers is honest;
+    // repeating it under three headings would imply three desks that do not exist.
+    const labelled = [['General', settings.teamEmail], ['Partnerships', settings.partnersEmail], ['Programs', settings.programsEmail]];
+    const byAddress = new Map();
+    for (const [label, address] of labelled) {
+      if (!address) continue;
+      byAddress.set(address, (byAddress.get(address) || []).concat(label));
+    }
+    const rows = [...byAddress].map(([address, labels]) => [labels.join(', '), `<a href="mailto:${esc(address)}">${esc(address)}</a>`]);
+    if (settings.whatsapp) rows.push(['Community', `<a href="${esc(settings.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp room ↗</a>`]);
+    // GitHub access is granted by hand, so there is no self-serve link to publish.
+    rows.push(['GitHub', 'By invite — ask in the WhatsApp room']);
+    list.innerHTML = rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd>${value}</dd></div>`).join('')
       || '<div><dt>Inboxes</dt><dd>Not published yet</dd></div>';
   } catch { list.innerHTML = '<div><dt>Inboxes</dt><dd>Unavailable</dd></div>'; }
 }

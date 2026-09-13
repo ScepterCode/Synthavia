@@ -265,7 +265,12 @@ function outboxView() {
       <p class="muted">${state.outbox.configured
         ? 'An email endpoint is configured, so messages are delivered as they are created. Anything that failed stays here and can be retried.'
         : 'No email endpoint is configured, so nothing has actually been delivered — every message is held here instead of being lost. Set SYNTHAVIA_EMAIL_ENDPOINT and SYNTHAVIA_EMAIL_KEY, then retry.'}</p></div>
-      <button class="button ${state.outbox.configured ? '' : 'button-quiet'}" id="retryOutbox" ${state.outbox.configured && undelivered ? '' : 'disabled'}>Retry ${undelivered} undelivered <span>→</span></button></section>
+      <div class="outbox-actions">
+        <button class="button ${state.outbox.configured ? '' : 'button-quiet'}" id="retryOutbox" ${state.outbox.configured && undelivered ? '' : 'disabled'}>Retry ${undelivered} undelivered <span>→</span></button>
+        <button class="button button-quiet" id="testEmail" ${state.outbox.configured ? '' : 'disabled'}>Send a test email <span>→</span></button>
+      </div></section>
+    ${state.outbox.from ? `<p class="muted outbox-from">Sending as <code>${esc(state.outbox.from)}</code>. The domain in that address has to be verified with your email provider or every send is rejected.</p>` : ''}
+    <p class="form-note" id="testEmailNote"></p>
     ${messages.length ? `<div class="records">${messages.slice(0, 60).map((message) => `<article><div><p class="tag">${esc(message.to)}</p><h3>${esc(message.subject)}</h3><p>${when(message.createdAt)} · ${message.attempts} attempt${message.attempts === 1 ? '' : 's'}</p></div>
       <div><span class="status-line"><span class="dot tone-${tone[message.status] || 'muted'}"></span>${esc(message.status)}</span><p>${esc(message.error || '')}</p></div></article>`).join('')}</div>`
       : '<div class="admin-empty"><span>◇</span><h3>No mail yet.</h3><p>Submit a form on the public site and both the acknowledgement and the team notification appear here.</p></div>'}`;
@@ -315,6 +320,23 @@ function render() {
   });
   document.querySelector('#clearRecords')?.addEventListener('click', async () => { await api('/api/admin/submissions', { method: 'DELETE' }); load(); });
   document.querySelector('#retryOutbox')?.addEventListener('click', async (event) => { event.target.disabled = true; await api('/api/admin/outbox', { method: 'POST' }); load(); });
+  document.querySelector('#testEmail')?.addEventListener('click', async (event) => {
+    const note = document.querySelector('#testEmailNote');
+    const recipient = window.prompt('Send a test email to:', state.me?.email || '');
+    if (!recipient) return;
+    event.target.disabled = true;
+    note.textContent = `Sending to ${recipient}…`;
+    // The provider's own error is shown rather than a generic failure: it is the only thing that
+    // says whether the key is wrong, the domain unverified, or the address simply a typo.
+    try {
+      const result = await api('/api/admin/email-test', { method: 'POST', body: JSON.stringify({ email: recipient }) });
+      note.textContent = result.sent ? `Sent to ${result.to}. Check the inbox, and the spam folder.` : `Not sent — ${result.error}`;
+    } catch (error) {
+      note.textContent = `Not sent — ${error.message}`;
+    }
+    event.target.disabled = false;
+    load();
+  });
   document.querySelector('#backupNow')?.addEventListener('click', async (event) => {
     event.target.disabled = true;
     try { const r = await api('/api/admin/backup', { method: 'POST' }); document.querySelector('#backupNote').textContent = `Saved ${r.file} (${Math.round(r.bytes / 1024)} KB). ${r.kept} kept.`; }

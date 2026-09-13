@@ -131,19 +131,30 @@ The same field type is reusable: add `['photo', 'Label', 'image']` to any collec
 
 Every submission sends two messages: an acknowledgement with the reference number to the person, and a notification to the inbox that owns that form type (set under **Community links** in the admin).
 
-Delivery is configured with three environment variables — any transactional email API that accepts `{from, to, subject, text}` with a bearer token will work:
+Both carry a **Reply-To** that points at a person: replying to the acknowledgement reaches the owning inbox, and replying to the notification answers the visitor directly. The from-address is never a destination.
 
-```powershell
-$env:SYNTHAVIA_EMAIL_ENDPOINT = "https://api.resend.com/emails"
-$env:SYNTHAVIA_EMAIL_KEY = "your-api-key"
-$env:SYNTHAVIA_EMAIL_FROM = "Synthavia AI <no-reply@synthavia.ai>"
+Delivery is configured with environment variables — any transactional email API that accepts `{from, to, subject, text}` with a bearer token will work:
+
+```
+SYNTHAVIA_EMAIL_ENDPOINT=https://api.resend.com/emails
+SYNTHAVIA_EMAIL_KEY=<from resend.com -> API Keys>
+SYNTHAVIA_EMAIL_FROM=Synthavia AI <no-reply@synthavia.org>
+SYNTHAVIA_ADDRESS=44b Aba Owerri Road, Aba, Abia State, Nigeria
 ```
 
-**Without them nothing is lost.** Every message is written to `data/outbox.json` and listed in the admin's **Outbox** with its status, so you can see exactly what would have gone out. Set the keys, then press *Retry undelivered*. Sending happens after the HTTP response, so a mail failure can never turn a saved submission into an error on the visitor's screen.
+**`SYNTHAVIA_EMAIL_FROM` must sit on a domain verified with the provider.** A Gmail address cannot be a from-address — the provider can only sign mail for a domain whose DNS you control — which is why the inbox that receives everything and the address mail is *sent from* are two different things. Replies still land in the real inbox through Reply-To.
+
+**Without a key nothing is lost.** Every message is written to the `outbox` table and listed in the admin's **Outbox** with its status and the provider's own error text, so you can see exactly what would have gone out and why it did not. Set the key, then press *Retry undelivered*. Sending happens after the HTTP response, so a mail failure can never turn a saved submission into an error on the visitor's screen.
+
+**Send a test email** in the same panel proves delivery end to end without waiting for a real submission. It uses the identical code path, so whatever it reports is what a visitor's acknowledgement would hit.
+
+The delivery path is covered by a test that runs the app against a stub provider: it asserts both messages go out with the right Reply-To, that a rejection is recorded with the provider's message rather than swallowed, and that *Retry undelivered* clears it.
 
 ## Community rooms
 
 The join flow's third step hands new members into the WhatsApp and GitHub rooms. Those links live in the admin under **Community links**, not in the code. Leave one blank and the flow says the invite is coming by email rather than showing a dead link — the same rule as everywhere else on the site.
+
+GitHub access is granted by hand, so that setting is deliberately empty: the contact page says access is by invite instead of publishing a link that would not let anyone in. Fill it in if the organisation is ever opened up.
 
 ## Sharing and search
 

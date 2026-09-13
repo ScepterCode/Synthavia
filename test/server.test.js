@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const http = require('node:http');
 const { execFileSync, spawn } = require('node:child_process');
 
 const projectRoot = path.join(__dirname, '..');
@@ -239,6 +240,103 @@ test('share tags and sitemap describe only published content', async () => {
   assert.ok(sitemap.includes('<loc>' + base + '/programs</loc>'), 'the sitemap must list readable paths');
   assert.ok(!sitemap.includes('view.html'), 'no query-string URLs in the sitemap');
   assert.match((await call('/robots.txt')).body, /Disallow: \/admin/);
+});
+
+/* ---------- Email delivery ---------- */
+
+// Delivery is exercised against a stub provider rather than a real one: the point is that the app
+// sends what it should, records the outcome, and can retry a failure — not that Resend works.
+test('mail is delivered, failures are recorded, and retry clears them', async () => {
+  const received = [];
+  let providerFails = false;
+  const provider = http.createServer((request, reply) => {
+    let raw = '';
+    request.on('data', (chunk) => { raw += chunk; });
+    request.on('end', () => {
+      if (providerFails) { reply.writeHead(422, { 'Content-Type': 'application/json' }); return reply.end('{"message":"domain not verified"}'); }
+      received.push({ auth: request.headers.authorization, ...JSON.parse(raw) });
+      reply.writeHead(200, { 'Content-Type': 'application/json' });
+      reply.end('{"id":"stub"}');
+    });
+  });
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+  const providerUrl = `http://127.0.0.1:${provider.address().port}/emails`;
+
+  // A second instance of the same app, configured with the stub, sharing the test schema.
+  const mailPort = port + 1;
+  const mailBase = `http://127.0.0.1:${mailPort}`;
+  const mailChild = spawn(process.execPath, ['server.js'], {
+    cwd: sandbox,
+    env: { ...process.env, PORT: String(mailPort), HOST: '127.0.0.1', PGSCHEMA: testSchema, SYNTHAVIA_BACKUP_HOURS: '0',
+           SYNTHAVIA_RATE_SUBMIT: '40', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', SITE_URL: '',
+           SYNTHAVIA_EMAIL_ENDPOINT: providerUrl, SYNTHAVIA_EMAIL_KEY: 'test-key',
+           SYNTHAVIA_EMAIL_FROM: 'Synthavia AI <no-reply@test.local>' },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  let mailLog = '';
+  mailChild.stdout.on('data', (d) => { mailLog += d; });
+  mailChild.stderr.on('data', (d) => { mailLog += d; });
+
+  try {
+    let up = false;
+    for (let attempt = 0; attempt < 300 && !up; attempt += 1) {
+      try { up = (await fetch(`${mailBase}/api/health`)).ok; } catch {}
+      if (!up) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(up, `mail instance did not start. Child output:\n${mailLog.trim() || '(silent)'}`);
+
+    const sender = `deliver-${Date.now()}@test.local`;
+    await fetch(`${mailBase}/api/submissions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Partner enquiry', name: 'Deliver', email: sender, organisation: 'Test Org', outcome: 'A pilot' })
+    });
+    for (let attempt = 0; attempt < 50 && received.length < 2; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+
+    assert.equal(received.length, 2, 'one acknowledgement and one team notification');
+    const ack = received.find((mail) => mail.to[0] === sender);
+    const team = received.find((mail) => mail.to[0] !== sender);
+    assert.ok(ack, 'the sender must be acknowledged');
+    assert.ok(team, 'the owning inbox must be notified');
+    assert.equal(ack.auth, 'Bearer test-key', 'the API key must be sent');
+    // A reply to either message has to reach a human, not the unattended from-address.
+    assert.equal(ack.reply_to, team.to[0], 'the acknowledgement replies to the owning inbox');
+    assert.equal(team.reply_to, sender, 'the notification replies to the person who wrote in');
+    assert.match(team.subject, /^\[Partner enquiry\]/);
+    assert.match(ack.text, /44b Aba Owerri Road/, 'the postal address belongs in the signature');
+
+    // A provider outage must be recorded rather than swallowed, then clear on retry.
+    providerFails = true;
+    await fetch(`${mailBase}/api/submissions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Newsletter signup', email: `fail-${Date.now()}@test.local` })
+    });
+    let failed = [];
+    for (let attempt = 0; attempt < 50 && !failed.length; attempt += 1) {
+      const outbox = await (await fetch(`${mailBase}/api/admin/outbox`, { headers: auth(token) })).json();
+      failed = outbox.messages.filter((message) => message.status === 'failed');
+      if (!failed.length) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(failed.length, 'a rejected send must be recorded as failed');
+    assert.match(failed[0].error, /422/, 'the provider status belongs in the record');
+    assert.match(failed[0].error, /domain not verified/, "the provider's own message must survive");
+
+    providerFails = false;
+    const retried = await (await fetch(`${mailBase}/api/admin/outbox`, { method: 'POST', headers: auth(token) })).json();
+    assert.ok(retried.retried > 0, 'retry must send what failed');
+    const after = await (await fetch(`${mailBase}/api/admin/outbox`, { headers: auth(token) })).json();
+    assert.equal(after.messages.filter((message) => message.status !== 'sent').length, 0, 'nothing should be left undelivered');
+
+    // The admin can prove delivery without waiting for a stranger to fill in a form.
+    const probe = await (await fetch(`${mailBase}/api/admin/email-test`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...auth(token) },
+      body: JSON.stringify({ email: 'probe@test.local' })
+    })).json();
+    assert.equal(probe.sent, true);
+    assert.ok(received.some((mail) => mail.to[0] === 'probe@test.local'));
+  } finally {
+    mailChild.kill();
+    provider.close();
+  }
 });
 
 /* ---------- Readable URLs ---------- */

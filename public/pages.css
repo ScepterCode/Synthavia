@@ -593,6 +593,11 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 /* Honeypot: off-screen rather than display:none, which some bots skip. */
 .hp { height: 0; left: -9999px; overflow: hidden; position: absolute; width: 0; }
 
+/* Outbox actions ------------------------------------------------------ */
+.outbox-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.outbox-from { font-size: 12px; margin: -14px 0 18px; }
+.outbox-from code { font-family: var(--mono); font-size: 11px; }
+
 /* Photographs -------------------------------------------------------- */
 .gallery .shot { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin: 0; overflow: hidden; }
 .gallery .shot img { aspect-ratio: 4 / 3; display: block; object-fit: cover; width: 100%; }
