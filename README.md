@@ -106,7 +106,7 @@ Framework preset **Other**, root directory the repository root, no build command
 `api/index.js` is the entry point: Vercel invokes the exported request handler per request instead of keeping a listening server. `vercel.json` rewrites everything to that function; the rewrite is only reached for paths that are *not* a file in `public/`, so assets still come straight from the CDN while every page goes through the server. `includeFiles` bundles `views/**`, `public/**` and `content.json` with the function, because the templates are read from disk to inject the title, description and share tags.
 
 1. Import the repo in Vercel.
-2. Add every variable from `.env` under Settings → Environment Variables, with `TRUST_PROXY=1`.
+2. Add every variable from `.env` under Settings → Environment Variables. `TRUST_PROXY` is not needed on Vercel — the platform is detected — but set it to `1` behind any other proxy, or the canonical URL claims `http://` and every visitor shares one rate-limit bucket.
 3. Run `npm run migrate` once against the production database (locally with the same `POSTGRES_URL`).
 4. Deploy, then open `/admin` to create the owner account.
 

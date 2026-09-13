@@ -20,7 +20,10 @@ const viewsDir = path.join(root, 'views');
 const mediaDir = path.join(publicDir, 'media');
 const port = Number(process.env.PORT || 4174);
 const host = process.env.HOST || '127.0.0.1';
-const trustProxy = process.env.TRUST_PROXY === '1';
+// On Vercel the platform is always the proxy: it terminates TLS and sets x-forwarded-for itself,
+// so its headers are trustworthy without being asked. Behind any other proxy, set TRUST_PROXY=1 —
+// without it the canonical URL claims http:// and every visitor shares one rate-limit bucket.
+const trustProxy = process.env.TRUST_PROXY === '1' || Boolean(process.env.VERCEL);
 const sessionLife = 1000 * 60 * 60 * 8;
 const backupHours = Number(process.env.SYNTHAVIA_BACKUP_HOURS || 6);
 
