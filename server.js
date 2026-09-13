@@ -294,6 +294,13 @@ async function shareTags(request, url, route) {
       }[page];
       if (pages) { title = `${pages[0]} — ${site}`; description = pages[1]; }
     }
+  } else if (route) {
+    // The standalone pages are not the home page and must not borrow its title and description.
+    const page = {
+      'flow.html': ['Start with Synthavia', 'Join Core, or apply to a Fellowship, Internship or Accelerator track.'],
+      'system.html': ['Design system', 'The tokens, type scale, components and honesty rules the site is built from.']
+    }[route.file];
+    if (page) { title = `${page[0]} — ${site}`; description = page[1]; }
   }
 
   const shareImage = ['share.png', 'share.jpg'].find((name) => fs.existsSync(path.join(publicDir, name))) || 'logo.png';
@@ -341,7 +348,7 @@ async function sendPage(request, response, url, route, status = 200) {
   if (route.file !== 'admin.html' && route.file !== '404.html') {
     const share = await shareTags(request, url, route);
     body = body
-      .replace('<title>Synthavia AI</title>', `<title>${escapeXml(share.title)}</title>`)
+      .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(share.title)}</title>`)
       .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeXml(share.description)}" />`)
       .replace('</head>', `${share.tags}\n  </head>`);
   }

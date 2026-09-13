@@ -280,6 +280,14 @@ test('an unknown path gets the site 404 page, not raw JSON', async () => {
   assert.equal(typeof api.body, 'object');
 });
 
+test('the private pages are not indexable', async () => {
+  for (const route of ['/admin', '/system', '/flow']) {
+    assert.match((await call(route)).body, /name="robots" content="noindex/, route + ' must be noindex');
+  }
+  // The admin never leaks share tags either — it is a private tool, not content.
+  assert.ok(!(await call('/admin')).body.includes('og:title'));
+});
+
 test('no HTML template sits in public/', () => {
   // This is the trap that silently broke production: public/ is Vercel's static output directory,
   // and its CDN answers any file there before a rewrite is consulted. An .html file in public/ is
