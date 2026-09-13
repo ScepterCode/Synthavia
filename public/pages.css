@@ -595,6 +595,8 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 
 /* Outbox actions ------------------------------------------------------ */
 .outbox-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.button[disabled] { cursor: not-allowed; opacity: 0.45; }
+.button[disabled]:hover { background: transparent; transform: none; }
 .outbox-from { font-size: 12px; margin: -14px 0 18px; }
 .outbox-from code { font-family: var(--mono); font-size: 11px; }
 

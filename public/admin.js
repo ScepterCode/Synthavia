@@ -266,10 +266,11 @@ function outboxView() {
         ? 'An email endpoint is configured, so messages are delivered as they are created. Anything that failed stays here and can be retried.'
         : 'No email endpoint is configured, so nothing has actually been delivered — every message is held here instead of being lost. Set SYNTHAVIA_EMAIL_ENDPOINT and SYNTHAVIA_EMAIL_KEY, then retry.'}</p></div>
       <div class="outbox-actions">
-        <button class="button ${state.outbox.configured ? '' : 'button-quiet'}" id="retryOutbox" ${state.outbox.configured && undelivered ? '' : 'disabled'}>Retry ${undelivered} undelivered <span>→</span></button>
-        <button class="button button-quiet" id="testEmail" ${state.outbox.configured ? '' : 'disabled'}>Send a test email <span>→</span></button>
+        <button class="button button-quiet" id="retryOutbox" ${state.outbox.configured && undelivered ? '' : 'disabled'}>Retry ${undelivered} undelivered <span>→</span></button>
+        <!-- Never disabled: pressing it when no key is set is how you find out that no key is set. -->
+        <button class="button" id="testEmail">Send a test email <span>→</span></button>
       </div></section>
-    ${state.outbox.from ? `<p class="muted outbox-from">Sending as <code>${esc(state.outbox.from)}</code>. The domain in that address has to be verified with your email provider or every send is rejected.</p>` : ''}
+    ${state.outbox.from ? `<p class="muted outbox-from">Sending as <code>${esc(state.outbox.from)}</code>. That domain has to be verified with your email provider or every send is rejected — a Gmail address can never be the sender.</p>` : ''}
     <p class="form-note" id="testEmailNote"></p>
     ${messages.length ? `<div class="records">${messages.slice(0, 60).map((message) => `<article><div><p class="tag">${esc(message.to)}</p><h3>${esc(message.subject)}</h3><p>${when(message.createdAt)} · ${message.attempts} attempt${message.attempts === 1 ? '' : 's'}</p></div>
       <div><span class="status-line"><span class="dot tone-${tone[message.status] || 'muted'}"></span>${esc(message.status)}</span><p>${esc(message.error || '')}</p></div></article>`).join('')}</div>`
