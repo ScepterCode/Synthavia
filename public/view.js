@@ -7,7 +7,15 @@ const hasDetail = ['lab', 'blog', 'events'];
 const route = (() => {
   const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
   const page = sections.includes(parts[0]) ? parts[0] : 'core';
-  return { page, detail: hasDetail.includes(page) && parts[1] ? decodeURIComponent(parts[1]) : '' };
+  // A link can carry what the visitor already told us — which topic, which service — so arriving
+  // from the enterprise page does not mean re-choosing what was just clicked.
+  const query = new URLSearchParams(location.search);
+  return {
+    page,
+    detail: hasDetail.includes(page) && parts[1] ? decodeURIComponent(parts[1]) : '',
+    topic: query.get('topic') || '',
+    service: query.get('service') || ''
+  };
 })();
 const state = {
   page: route.page,
@@ -16,7 +24,10 @@ const state = {
   category: 'All',
   tab: 'all',
   currency: 'NGN',
-  topic: 'Join the community'
+  // Validated against the published topics at render time: content has not loaded yet here, and a
+  // topic that no longer exists must fall back rather than select nothing.
+  topic: route.topic || 'Join the community',
+  service: route.service
 };
 const main = document.querySelector('#main');
 
@@ -46,7 +57,6 @@ function upcoming() {
 
 /* ---------- Core, Programs, Contact ---------- */
 
-const contactForm = `<form data-form="Contact message"><label>Name<input required name="name" placeholder="Your name" /></label><label>Email<input required type="email" name="email" placeholder="you@example.com" /></label><label>What would you like to talk about?<select name="topic"><option>Join the community</option><option>Programs</option><option>Research collaboration</option><option>Partnership</option></select></label><label>Your message<textarea name="idea" placeholder="A sentence or two is plenty"></textarea></label><button class="button" type="submit">Send message <span>→</span></button><p class="form-note"></p></form>`;
 
 function core() {
   return hero('SYNTHAVIA CORE', 'The community<br /><em>engine.</em>', 'Workshops every fortnight, cohorts three times a year, mentorship on request, and open-source projects you can join this week.') +
@@ -98,6 +108,9 @@ function programs() {
 
 function contact() {
   const topic = content.topics.find((item) => item.label === state.topic) || content.topics[0];
+  // The service picker belongs to the commercial topic only; on any other it would be noise.
+  const commercial = Boolean(topic && /^Enterprise/.test(topic.label));
+  const services = content.services || [];
   return hero('CONTACT', 'Say hello — in whichever<br />language you prefer.', 'Pick a topic and your message arrives tagged, so it reaches the right person instead of sitting in a queue. English, Pidgin and Igbo are all welcome.') +
     `<section class="contact detail-contact">
       <div>
@@ -107,9 +120,13 @@ function contact() {
       </div>
       <form data-form="Contact message">
         <label>What is this about? *<select name="topic" data-topic>${content.topics.map((item) => `<option${item.label === topic.label ? ' selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label>
+        ${commercial && services.length ? `<label>Which service? *<select name="service" data-service>
+          ${services.map((service) => `<option${state.service === service.slug || state.service === service.title ? ' selected' : ''} value="${esc(service.title)}">${esc(service.title)}</option>`).join('')}
+          <option${['', 'unsure'].includes(state.service) ? ' selected' : ''} value="Not sure yet">Not sure yet — help me scope it</option>
+        </select></label>` : ''}
         <label>Name *<input required name="name" placeholder="Your name" /></label>
         <label>Email *<input required type="email" name="email" placeholder="you@example.com" /></label>
-        <label>Message *<textarea required name="idea" minlength="10" placeholder="A sentence or two is plenty"></textarea></label>
+        <label>Message *<textarea required name="idea" minlength="10" placeholder="${commercial ? 'What are you trying to solve, roughly how many people it affects, and any timing you are working to.' : 'A sentence or two is plenty'}"></textarea></label>
         <label class="check"><input type="checkbox" name="newsletter" />Add me to the newsletter</label>
         <button class="button" type="submit">Send message <span>→</span></button>
         <p class="form-note"></p>
@@ -354,7 +371,7 @@ function enterprise() {
           ${service.audience ? `<div><dt>WHO IT IS FOR</dt><dd>${esc(service.audience)}</dd></div>` : ''}
           ${service.engagement ? `<div><dt>SHAPE OF THE WORK</dt><dd>${esc(service.engagement)}</dd></div>` : ''}
         </dl>
-        <a class="button button-quiet" href="/contact?topic=${encodeURIComponent('Partnership / sponsorship')}">${esc(service.action || 'Request a proposal')} <span>→</span></a>
+        <a class="button button-quiet" href="/contact?topic=${encodeURIComponent('Enterprise & business AI')}&service=${encodeURIComponent(service.title)}">${esc(service.action || 'Request a proposal')} <span>→</span></a>
       </article>`).join('')}</div>`
       : `<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>The service list is empty.</h3>
         <p>Services are published from the admin. Nothing is listed here until someone publishes it.</p></div></div>`}
@@ -374,7 +391,7 @@ function enterprise() {
     </section>
 
     ${callout('READY TO SCOPE SOMETHING?', 'Tell us the problem.<br /><em>We will tell you if we fit.</em>',
-      `<a class="button" href="/contact?topic=${encodeURIComponent('Partnership / sponsorship')}">Request a proposal <span>→</span></a>`)}`;
+      `<a class="button" href="/contact?topic=${encodeURIComponent('Enterprise & business AI')}">Request a proposal <span>→</span></a>`)}`;
 }
 
 // The proof row is drawn from the public stats endpoint, which returns null for any figure that has
@@ -454,6 +471,22 @@ main.addEventListener('change', (event) => {
   const select = event.target.closest('[data-topic]');
   if (!select) return;
   state.topic = select.value;
+  // The picker appears and disappears with the topic, so the form is re-rendered rather than
+  // patched. Everything already typed is carried across by hand below.
+  const form = select.closest('form');
+  const typed = Object.fromEntries([...new FormData(form)].filter(([key]) => key !== 'topic'));
+  const wasCommercial = Boolean(form.querySelector('[data-service]'));
+  const nowCommercial = /^Enterprise/.test(select.value);
+  if (wasCommercial !== nowCommercial) {
+    if (typed.service) state.service = typed.service;
+    render();
+    const fresh = main.querySelector('form[data-form="Contact message"]');
+    for (const [key, value] of Object.entries(typed)) {
+      const field = fresh?.elements[key];
+      if (field && key !== 'service') field.value = value;
+    }
+    return;
+  }
   const topic = content.topics.find((item) => item.label === state.topic) || content.topics[0];
   const routing = main.querySelector('.routing p:last-child');
   if (routing) routing.innerHTML = `This topic is routed to <b>${esc(topic.to)}</b>. Typical reply time is <b>${esc(topic.sla)}</b>.`;

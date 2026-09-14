@@ -1037,6 +1037,11 @@
   ],
   "topics": [
     {
+      "label": "Enterprise & business AI",
+      "sla": "3 working days",
+      "to": "the enterprise desk"
+    },
+    {
       "label": "Join the community",
       "sla": "2 working days",
       "to": "the community team"

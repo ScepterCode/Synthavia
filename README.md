@@ -39,6 +39,8 @@ The home page leads with four pillars — Enterprise, Core, Lab, Programs — an
 
 The three offerings live in the `services` collection, edited and published from the admin like events or posts, with the same draft rule: nothing appears publicly until someone publishes it.
 
+Each service CTA deep-links to the contact form as `/contact?topic=Enterprise & business AI&service=<title>`, which arrives with the topic and the service already chosen. The service picker only appears under the commercial topic; switching topics re-renders the form and carries across anything already typed.
+
 **What the page will not say.** The proof row is drawn from `/api/stats`, which returns `null` for any figure nobody has signed off. "Talents trained" currently renders as an amber em dash marked *audit in progress* — on the commercial page, in front of a prospective client. That is deliberate: a sales page that outruns the Impact grid on the same site is the failure the honesty rules exist to prevent. Sign the figure off in the admin and it appears here by itself.
 
 ## Layout

@@ -34,7 +34,7 @@ const compressible = new Set(['.html', '.css', '.js', '.svg']);
 const forms = {
   'Core signup': { prefix: 'SY', extra: { interest: 120 } },
   'Program application': { prefix: 'SY', extra: { track: 200, idea: 1000 }, requires: ['idea'] },
-  'Contact message': { prefix: 'SY', extra: { topic: 120, idea: 1000 } },
+  'Contact message': { prefix: 'SY', extra: { topic: 120, service: 160, idea: 1000 } },
   'Partner enquiry': { prefix: 'PTR', extra: { organisation: 160, orgType: 80, role: 120, website: 200, tier: 60, support: 300, outcome: 1000 }, requires: ['organisation', 'outcome'] },
   'Newsletter signup': { prefix: 'SY', extra: { source: 60 }, anonymous: true }
 };

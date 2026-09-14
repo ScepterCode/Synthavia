@@ -266,6 +266,27 @@ test('the enterprise route is additive and its services obey the publish state',
   await call('/api/admin/content', { method: 'DELETE', headers: auth(token), body: JSON.stringify({ collection: 'services', slug }) });
 });
 
+test('a commercial enquiry records which service it is about', async () => {
+  const email = 'client-' + Date.now() + '@test.local';
+  const sent = await post('/api/submissions', { type: 'Contact message', name: 'Ada', email,
+    topic: 'Enterprise & business AI', service: 'Corporate AI Training & Upskilling',
+    idea: 'We need training for 40 staff before the new year.' });
+  assert.equal(sent.status, 201);
+
+  const record = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.find((entry) => entry.email === email);
+  assert.equal(record.topic, 'Enterprise & business AI');
+  assert.equal(record.service, 'Corporate AI Training & Upskilling', 'which offering they want must survive to the admin');
+
+  // The team notification lists every field, so the service reaches the inbox too.
+  const notification = (await call('/api/admin/outbox', { headers: auth(token) })).body.messages
+    .find((message) => message.subject.includes(record.id) && message.subject.startsWith('['));
+  assert.match(notification.body, /service: Corporate AI Training & Upskilling/);
+
+  // The topic has to exist publicly, or the enterprise page links to a choice nobody can pick.
+  const topics = (await call('/api/content')).body.topics.map((item) => item.label);
+  assert.ok(topics.includes('Enterprise & business AI'), 'the commercial topic is published');
+});
+
 /* ---------- Submission workflow ---------- */
 
 test('a submission carries a handling state that only an admin can move', async () => {
