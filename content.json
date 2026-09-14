@@ -983,6 +983,44 @@
       "status_publish": "Published"
     }
   ],
+  "services": [
+    {
+      "slug": "corporate-ai-training",
+      "title": "Corporate AI Training & Upskilling",
+      "kicker": "TEAMS AND EXECUTIVES",
+      "blurb": "Custom, hands-on workshops for teams and executives to integrate modern GenAI tools, prompt engineering, and workflow automation into daily operations.",
+      "detail": "Sessions are built around your own workflows rather than a generic curriculum, and run for the people who will actually use the tools.",
+      "audience": "Companies, institutions and public sector teams",
+      "engagement": "Workshop or short programme",
+      "action": "Request a proposal",
+      "order": "1",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "sme-ai-integration",
+      "title": "SME AI Integration & Copilots",
+      "kicker": "INTERNAL KNOWLEDGE AND CUSTOMER WORK",
+      "blurb": "Custom implementation of AI assistants and LLM workflows designed to streamline internal business knowledge and customer interactions.",
+      "detail": "Built for the constraints small businesses actually operate under — intermittent connectivity, mixed-language customers, and records that live in a notebook.",
+      "audience": "Small and medium businesses",
+      "engagement": "Implementation project",
+      "action": "Talk to us",
+      "order": "2",
+      "status_publish": "Published"
+    },
+    {
+      "slug": "custom-ai-engineering",
+      "title": "Custom AI Engineering & Development",
+      "kicker": "BUILD, TRAIN, DEPLOY",
+      "blurb": "Specialized engineering partnerships to build, train, and deploy tailored machine learning pipelines, edge models, and domain-specific AI systems.",
+      "detail": "The same engineering that runs in Synthavia Lab, pointed at your problem: data collection and consent, model training, evaluation, and deployment to hardware you can afford to run.",
+      "audience": "Organisations with a specific technical problem",
+      "engagement": "Engineering partnership",
+      "action": "Start a conversation",
+      "order": "3",
+      "status_publish": "Published"
+    }
+  ],
   "faqs": [
     {
       "q": "Is joining Core free?",

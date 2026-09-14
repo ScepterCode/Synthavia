@@ -1,8 +1,8 @@
 // Content comes from the server so the admin's publish state decides what exists here.
-let content = { projects: [], posts: [], events: [], tiers: [], spend: [], partners: [], orgTypes: [], supportKinds: [], resources: [], testimonials: [], programs: [], team: [], topics: [], faqs: [] };
+let content = { projects: [], posts: [], events: [], tiers: [], spend: [], partners: [], orgTypes: [], supportKinds: [], resources: [], testimonials: [], programs: [], services: [], team: [], topics: [], faqs: [] };
 // Readable paths: /programs, /blog/<slug>. The server resolves the same path to the same page for
 // the share tags, so these two lists are mirrored in server.js — change them together.
-const sections = ['team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
+const sections = ['enterprise', 'team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
 const hasDetail = ['lab', 'blog', 'events'];
 const route = (() => {
   const parts = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
@@ -339,6 +339,63 @@ function partners() {
     </section>`;
 }
 
+function enterprise() {
+  const services = content.services || [];
+  return hero('ENTERPRISE & BUSINESS AI', 'AI that works<br /><em>where you work.</em>',
+    'Synthavia partners with businesses, institutions and public sector bodies to deploy practical, localised AI solutions and upskill teams for the modern AI economy.') +
+    `<section class="index-section">
+      ${services.length ? `<div class="service-list">${services.map((service, index) => `<article class="service-card">
+        <p class="pillar-number">${String(index + 1).padStart(2, '0')}</p>
+        <p class="pillar-kicker">${esc(service.kicker)}</p>
+        <h3>${esc(service.title)}</h3>
+        <p>${esc(service.blurb)}</p>
+        ${service.detail ? `<p class="muted">${esc(service.detail)}</p>` : ''}
+        <dl class="service-facts">
+          ${service.audience ? `<div><dt>WHO IT IS FOR</dt><dd>${esc(service.audience)}</dd></div>` : ''}
+          ${service.engagement ? `<div><dt>SHAPE OF THE WORK</dt><dd>${esc(service.engagement)}</dd></div>` : ''}
+        </dl>
+        <a class="button button-quiet" href="/contact?topic=${encodeURIComponent('Partnership / sponsorship')}">${esc(service.action || 'Request a proposal')} <span>→</span></a>
+      </article>`).join('')}</div>`
+      : `<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>The service list is empty.</h3>
+        <p>Services are published from the admin. Nothing is listed here until someone publishes it.</p></div></div>`}
+    </section>
+
+    <section class="index-section">
+      <div class="section-head"><p class="eyebrow">WHAT WE BRING</p><h2>Capability, and<br />what backs it.</h2>
+        <a class="arrow-link" href="/lab">See the research <span>→</span></a></div>
+      <p class="muted enterprise-note">Every figure below is one a named person has signed off. Anything still being audited shows as an em dash rather than a number, here and everywhere else on this site — including in a proposal.</p>
+      <div class="proof-row" id="enterpriseProof"></div>
+      <div class="grounding-grid">
+        <a class="ground-card" href="/core"><p class="tag">SYNTHAVIA CORE</p><h3>The training practice</h3>
+          <p>Workshops, cohorts and mentorship run continuously across Abia. The same people who teach Core run the corporate sessions.</p></a>
+        <a class="ground-card" href="/lab"><p class="tag">SYNTHAVIA LAB</p><h3>The engineering practice</h3>
+          <p>Applied model development on African data — agriculture, language, small business. Each project publishes its status and what it cannot yet claim.</p></a>
+      </div>
+    </section>
+
+    ${callout('READY TO SCOPE SOMETHING?', 'Tell us the problem.<br /><em>We will tell you if we fit.</em>',
+      `<a class="button" href="/contact?topic=${encodeURIComponent('Partnership / sponsorship')}">Request a proposal <span>→</span></a>`)}`;
+}
+
+// The proof row is drawn from the public stats endpoint, which returns null for any figure that has
+// not been signed off. It is deliberately not hardcoded: a claim on the enterprise page cannot
+// outrun what the Impact grid on the home page is willing to say.
+async function fillProof() {
+  const row = main.querySelector('#enterpriseProof');
+  if (!row) return;
+  try {
+    const { metrics } = await (await fetch('/api/stats')).json();
+    const wanted = ['members', 'projects', 'editions', 'trained'];
+    const shown = wanted.map((key) => metrics.find((metric) => metric.key === key)).filter(Boolean);
+    row.innerHTML = shown.map((metric) => `<div class="proof-cell${metric.value === null ? ' pending' : ''}">
+      <b>${metric.value === null ? '—' : esc(metric.value)}</b>
+      <span>${esc(metric.label)}</span>
+      <small>${metric.value === null ? 'Audit in progress' : esc(metric.source)}</small></div>`).join('');
+  } catch {
+    row.innerHTML = '<p class="muted">Figures unavailable.</p>';
+  }
+}
+
 /* ---------- Render ---------- */
 
 function markup() {
@@ -354,7 +411,7 @@ function markup() {
     const event = content.events.find((item) => item.slug === state.detail);
     return event ? eventPage(event) : eventsIndex();
   }
-  const pages = { team, core, programs, partners, contact };
+  const pages = { enterprise, team, core, programs, partners, contact };
   return pages[state.page] ? pages[state.page]() : core();
 }
 
@@ -363,6 +420,7 @@ function render() {
   // The document title is set by the server, which knows the same page and slug — see shareTags().
   main.querySelectorAll('[data-countdown]').forEach(startCountdown);
   fillChannels();
+  fillProof();
   window.SynthaviaApp?.translate(main);
   window.SynthaviaApp?.markCurrency(main);
 }

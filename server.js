@@ -65,6 +65,7 @@ const collections = {
   resources: { fields: { title: 160, kind: 40, detail: 300, url: 300 }, states: ['Published', 'Draft'] },
   testimonials: { fields: { quote: 400, name: 120, role: 160 }, states: ['Published', 'Draft'] },
   programs: { fields: { title: 160, kicker: 60, state: 60, body: 600, dur: 40, size: 40, mode: 60, cost: 60, dates: 160, action: 60 }, states: ['Published', 'Draft'] },
+  services: { fields: { title: 160, kicker: 60, blurb: 400, detail: 600, audience: 160, engagement: 120, action: 60, order: 4 }, states: ['Published', 'Draft'] },
   team: { fields: { name: 120, role: 120, bio: 600, photo: 300, link: 300, order: 4 }, states: ['Published', 'Draft'] }
 };
 const staticLists = ['tiers', 'spend', 'orgTypes', 'supportKinds', 'topics', 'faqs'];
@@ -135,6 +136,7 @@ async function publicContent() {
   const all = await content();
   return {
     ...all,
+    services: all.services.filter((item) => item.status_publish === 'Published').sort((a, b) => Number(a.order || 99) - Number(b.order || 99)),
     events: all.events.filter((item) => item.status_publish === 'Published'),
     posts: all.posts.filter((item) => item.status_publish === 'Published'),
     projects: all.projects.filter((item) => item.status_publish === 'Published'),
@@ -233,7 +235,7 @@ async function buildEntry(input) {
 // the single shell behind all of the section pages, so a path is resolved to a page here and the
 // client router derives the same thing from location.pathname. Keep the two in step: sections and
 // detailOf below are mirrored at the top of public/view.js.
-const sections = ['team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
+const sections = ['enterprise', 'team', 'core', 'lab', 'programs', 'events', 'blog', 'partners', 'contact'];
 const detailOf = { lab: 'case', blog: 'post', events: 'event' };
 const standalone = { '': 'index.html', admin: 'admin.html', flow: 'flow.html', system: 'system.html' };
 
@@ -298,6 +300,7 @@ async function shareTags(request, url, route) {
       schema = event.startsAt ? { '@context': 'https://schema.org', '@type': 'Event', name: `${event.title} — ${event.subtitle}`, description, startDate: event.startsAt, location: { '@type': 'Place', name: event.venue }, organizer: { '@type': 'Organization', name: site }, eventStatus: 'https://schema.org/EventScheduled', eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode' } : null;
     } else {
       const pages = {
+        enterprise: ['Enterprise AI services', 'Corporate AI training, SME copilots and custom AI engineering — built in Abia, for how African businesses actually operate.'],
         team: ['About & team', 'The people behind Synthavia AI. Every project on the site has a named owner.'],
         core: ['Synthavia Core', 'Workshops, cohorts, mentorship and open-source projects across Abia. Core is free and it stays free.'],
         lab: ['Synthavia Lab', 'Open datasets, small models and tools for agriculture, education, African-language NLP and enterprise.'],

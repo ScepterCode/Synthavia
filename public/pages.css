@@ -593,6 +593,50 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 /* Honeypot: off-screen rather than display:none, which some bots skip. */
 .hp { height: 0; left: -9999px; overflow: hidden; position: absolute; width: 0; }
 
+/* Enterprise -----------------------------------------------------------
+   The pillar row was built for three cards at 425px tall. A fourth at the same width would
+   overflow a 1280px laptop, so the four-up row narrows the cards and lets them wrap to two
+   columns before they get too thin to read. */
+.pillar-list-four { grid-template-columns: repeat(4, 1fr); }
+.pillar-list-four .pillar { min-height: 385px; padding: 22px; }
+.pillar-list-four .pillar h3 { font-size: clamp(22px, 2vw, 30px); }
+.pillar-list-four .pillar p:not(.pillar-kicker) { font-size: 12.5px; }
+.pillar-list-four .card-symbol { font-size: 120px; }
+.enterprise-card .card-symbol { color: color-mix(in srgb, var(--amber) 20%, transparent); }
+@media (max-width: 1180px) { .pillar-list-four { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .pillar-list-four { grid-template-columns: 1fr; } }
+
+/* The nav carries nine links now. Tightening the gap and letting it shrink keeps them on one
+   line down to the point where the mobile sheet takes over at 800px. */
+.site-header nav { column-gap: clamp(13px, 1.6vw, 26px); }
+
+.service-list { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.service-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex;
+  flex-direction: column; padding: 28px; }
+.service-card h3 { font-size: clamp(24px, 2.4vw, 33px); margin: 10px 0 14px; }
+.service-card > p { color: var(--ink-2); font-size: 14px; }
+.service-card .muted { font-size: 13px; }
+.service-card .button { margin-top: auto; justify-content: space-between; }
+.service-facts { display: grid; gap: 12px; margin: 18px 0 24px; }
+.service-facts dt { color: var(--cyan); font: 10px var(--mono); letter-spacing: .05em; }
+.service-facts dd { font-size: 13px; margin: 4px 0 0; }
+
+.enterprise-note { font-size: 13px; margin: -18px 0 26px; max-width: 70ch; }
+.proof-row { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 34px; }
+.proof-cell { border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.proof-cell b { color: var(--cyan); display: block; font: 44px var(--display); letter-spacing: -.04em; line-height: 1; }
+.proof-cell span { color: var(--ink); display: block; font-size: 13px; margin: 10px 0 4px; }
+.proof-cell small { color: var(--ink-2); font: 10px var(--mono); }
+.proof-cell.pending b { color: var(--amber); }
+.proof-cell.pending small { color: var(--amber); }
+
+.grounding-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.ground-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: block;
+  padding: 26px; transition: border-color .2s, transform .2s; }
+.ground-card:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.ground-card h3 { font-size: 26px; margin: 8px 0 12px; }
+.ground-card p { color: var(--ink-2); font-size: 13px; margin: 0; }
+
 /* Gallery editor ------------------------------------------------------ */
 .gallery-field { border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
 .gallery-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin: 16px 0 18px; }

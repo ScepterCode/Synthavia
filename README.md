@@ -17,6 +17,7 @@ test suite.
 | Route | What it is |
 | --- | --- |
 | `/` | Home — hero (EN/PCM/IG), signed-off stats bar, ecosystem, case study, programs, events, partners, blog strip, contact |
+| `/enterprise` | Enterprise & Business AI — corporate training, SME copilots, custom engineering. Services are an admin-editable collection; the proof row reads the signed-off stats, so a claim here can never outrun the Impact grid |
 | `/team` | About & team — profiles with photos, managed in the admin |
 | `/core` | Community programs and cadence |
 | `/lab` | Filterable project index |
@@ -31,6 +32,14 @@ test suite.
 | `/flow?type=join\|apply` | Join Core (one step, ends in the community rooms) and the three-step application |
 | `/admin` | Unlisted. Dashboard, submissions, stat sign-off, and editable events / posts / partners / projects |
 | `/system` | Design system reference — live tokens, type scale, components, the honesty rules. Not linked from the public nav |
+
+## Enterprise positioning
+
+The home page leads with four pillars — Enterprise, Core, Lab, Programs — and the hero carries a B2B primary CTA next to the community one. `/enterprise` is a real route, and the home page section also carries `id="enterprise"`, so both a link and an anchor work.
+
+The three offerings live in the `services` collection, edited and published from the admin like events or posts, with the same draft rule: nothing appears publicly until someone publishes it.
+
+**What the page will not say.** The proof row is drawn from `/api/stats`, which returns `null` for any figure nobody has signed off. "Talents trained" currently renders as an amber em dash marked *audit in progress* — on the commercial page, in front of a prospective client. That is deliberate: a sales page that outruns the Impact grid on the same site is the failure the honesty rules exist to prevent. Sign the figure off in the admin and it appears here by itself.
 
 ## Layout
 

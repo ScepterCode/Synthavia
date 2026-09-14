@@ -242,6 +242,30 @@ test('share tags and sitemap describe only published content', async () => {
   assert.match((await call('/robots.txt')).body, /Disallow: \/admin/);
 });
 
+/* ---------- Enterprise ---------- */
+
+test('the enterprise route is additive and its services obey the publish state', async () => {
+  const page = (await call('/enterprise')).body;
+  assert.match(page, /<title>Enterprise AI services/);
+  assert.match(page, /rel="canonical" href="[^"]*\/enterprise"/);
+  assert.ok((await call('/sitemap.xml')).body.includes(base + '/enterprise'), 'it belongs in the sitemap');
+
+  const published = (await call('/api/content')).body.services;
+  assert.ok(published.length >= 3, 'the three offerings are published');
+  assert.deepEqual(published.map((service) => service.order), [...published.map((s2) => s2.order)].sort(), 'services come back in their set order');
+
+  // Adding a commercial page must not disturb anything that already had a URL.
+  for (const route of ['/lab', '/events', '/programs', '/team', '/contact', '/core', '/blog', '/partners']) {
+    assert.equal((await call(route)).status, 200, route + ' must still answer');
+  }
+
+  const slug = 'draft-service-' + Date.now();
+  await post('/api/admin/content', { collection: 'services', slug, title: 'Unannounced offering', blurb: 'Not ready.', status_publish: 'Draft' }, token);
+  assert.ok(!(await call('/api/content')).body.services.some((service) => service.slug === slug), 'a draft service is not public');
+  assert.ok((await call('/api/admin/content', { headers: auth(token) })).body.services.some((service) => service.slug === slug), 'but the admin sees it');
+  await call('/api/admin/content', { method: 'DELETE', headers: auth(token), body: JSON.stringify({ collection: 'services', slug }) });
+});
+
 /* ---------- Submission workflow ---------- */
 
 test('a submission carries a handling state that only an admin can move', async () => {
@@ -430,7 +454,7 @@ test('mail is delivered, failures are recorded, and retry clears them', async ()
 /* ---------- Readable URLs ---------- */
 
 test('every section and detail page answers on its own path', async () => {
-  for (const route of ['/', '/team', '/core', '/lab', '/programs', '/events', '/blog', '/partners', '/contact',
+  for (const route of ['/', '/enterprise', '/team', '/core', '/lab', '/programs', '/events', '/blog', '/partners', '/contact',
                        '/admin', '/flow', '/system', '/blog/no-wrapper', '/lab/cassava-disease-vision']) {
     const response = await call(route);
     assert.equal(response.status, 200, `${route} should be a page`);
