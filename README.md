@@ -75,6 +75,12 @@ The browser downscales to 900px before upload, and the server validates the file
 
 Deliberate site imagery — the event gallery — is committed under `public/media/events/` and ships with the deploy. Runtime uploads are gitignored.
 
+## What happens to a submission
+
+A public form writes a row, sends two emails (acknowledgement to the visitor, notification to the team inbox), and appears in the admin's **Submissions** queue. Each record opens in place to show every field in full, and carries a handling state — **New**, **In progress**, **Answered**, **Closed** — with who last moved it and when. **Reply by email** opens the Outbox composer prefilled with the sender and a subject tied to the reference.
+
+The state lives in its own column, not in the payload: what the visitor sent is never rewritten by the team's bookkeeping, and the queue can be filtered by state as well as by form type.
+
 ## Accounts
 
 Real accounts, not a shared key. Passwords are hashed with **scrypt** and sessions are stored server-side with an eight-hour expiry, so signing out actually ends the session.
@@ -87,6 +93,10 @@ Two roles: **owner** manages accounts and is the only role that can sign off a p
 - **Honeypot**: every public form carries a `company` field positioned off-screen. People never see it; bots fill it, and the server refuses anything that arrives with it set.
 - **Duplicate suppression**: the same email submitting the same form inside a minute is a double-click or a bot, and is refused politely.
 - Behind a proxy set `TRUST_PROXY=1` so limits apply to the visitor's IP rather than the proxy's. Leave it off otherwise — a spoofed `X-Forwarded-For` would defeat the limiter.
+
+## Caching
+
+Uploaded media carries a content hash in its name and is cached hard and immutably. Everything else — CSS, client JS, HTML — is served `no-cache`, which means *revalidate before reuse*, not *do not store*: the ETag answers a revalidation with a 304 and no body. This replaced a `max-age=3600`, which let a browser serve an hour-old `admin.js` **without asking**, so a change to the admin looked like it had not shipped. An admin tool that lies about its own version is worse than one that costs a conditional request.
 
 ## Performance
 
@@ -123,7 +133,9 @@ Editable collections: **events, blog posts, partners, Lab projects, resources, t
 
 ## Images
 
-Team photos upload from the admin. The browser downscales to 900px and re-encodes before sending (a 4MB phone photo lands as roughly 150KB), then `POST /api/admin/media` checks the **file's magic bytes** — not its declared MIME type — accepts only PNG, JPEG and WebP under 4MB, and writes it to `public/media/` under a hashed name. The upload route is behind admin auth like every other write.
+Team photos, event covers and event galleries upload from the admin. The browser downscales and re-encodes before sending (a 4MB phone photo lands as roughly 150KB), then `POST /api/admin/media` checks the **file's magic bytes** — not its declared MIME type — accepts only PNG, JPEG and WebP under 4MB, and writes it to `public/media/` under a hashed name. The upload route is behind admin auth like every other write. Portraits go to 900px; gallery photos keep 1600px, since they are shown far larger.
+
+**Event galleries** are edited as a draft: photos upload immediately but only reach the event when the form is saved, so a half-finished set never becomes the published one. Each photo carries a caption for what it actually shows — an uncaptioned photo publishes with no caption rather than an invented one. `hasGallery`, which turns on the public recap section, is derived from the photo count on save, so it cannot drift out of step with the photos. The server refuses any gallery image that is not in our own media store: a hotlinked URL would put content we do not control on the page.
 
 The same field type is reusable: add `['photo', 'Label', 'image']` to any collection's `fields` in `server.js` and `admin.js` to give it an uploader.
 

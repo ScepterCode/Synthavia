@@ -97,6 +97,12 @@ async function migrate() {
     // Added after the first release: who sent a hand-written email. Blank for automatic mail.
     await admin.query(`ALTER TABLE ${schema}.outbox ADD COLUMN IF NOT EXISTS sent_by text`);
     await admin.query(`ALTER TABLE ${schema}.outbox ADD COLUMN IF NOT EXISTS reply_to text`);
+    // Where a submission has got to. Kept in its own column rather than inside the payload so it
+    // can be filtered and indexed, and so editing it never rewrites what the visitor actually sent.
+    await admin.query(`ALTER TABLE ${schema}.submissions ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'New'`);
+    await admin.query(`ALTER TABLE ${schema}.submissions ADD COLUMN IF NOT EXISTS handled_by text`);
+    await admin.query(`ALTER TABLE ${schema}.submissions ADD COLUMN IF NOT EXISTS handled_at timestamptz`);
+    await admin.query(`CREATE INDEX IF NOT EXISTS submissions_status ON ${schema}.submissions (status)`);
   } finally {
     await admin.end();
   }
@@ -111,7 +117,16 @@ const addSubmission = (entry) => transaction(async (client) => {
   );
   return entry;
 });
-const submissions = async () => (await rows('SELECT payload FROM submissions ORDER BY created_at DESC')).map((row) => row.payload);
+// The payload is exactly what the visitor sent and is never edited. Everything the team adds
+// afterwards lives in its own columns and is merged on read.
+const submissions = async () => (await rows(
+  'SELECT payload, status, handled_by AS "handledBy", handled_at AS "handledAt" FROM submissions ORDER BY created_at DESC'
+)).map((row) => ({ ...row.payload, status: row.status || 'New', handledBy: row.handledBy || '', handledAt: row.handledAt || null }));
+
+const setSubmissionStatus = (id, status, handledBy) => query(
+  'UPDATE submissions SET status = $1, handled_by = $2, handled_at = now() WHERE id = $3',
+  [status, handledBy, id]
+);
 const clearSubmissions = () => query('DELETE FROM submissions');
 async function recentDuplicate(type, email, seconds = 60) {
   if (!email) return false;
@@ -336,7 +351,7 @@ const close = () => pool.end();
 
 module.exports = {
   pool, query, transaction, migrate, dataDir, backupDir, schema,
-  addSubmission, submissions, clearSubmissions, recentDuplicate,
+  addSubmission, submissions, clearSubmissions, recentDuplicate, setSubmissionStatus,
   stats, saveStat,
   collection, contentStatic, saveItem, deleteItem,
   settingsRaw, saveSettings,

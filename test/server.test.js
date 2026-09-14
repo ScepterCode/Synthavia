@@ -242,6 +242,64 @@ test('share tags and sitemap describe only published content', async () => {
   assert.match((await call('/robots.txt')).body, /Disallow: \/admin/);
 });
 
+/* ---------- Submission workflow ---------- */
+
+test('a submission carries a handling state that only an admin can move', async () => {
+  const email = `workflow-${Date.now()}@test.local`;
+  await post('/api/submissions', { type: 'Contact message', name: 'Workflow', email, idea: 'Please reply to this one.' });
+  const listed = (await call('/api/admin/submissions', { headers: auth(token) })).body;
+  const record = listed.records.find((entry) => entry.email === email);
+  assert.ok(record, 'the submission should be in the queue');
+  assert.equal(record.status, 'New', 'everything starts as New');
+  assert.ok(listed.states.includes('Answered'), 'the admin is told which states exist');
+
+  const moved = await post('/api/admin/submissions', { id: record.id, status: 'Answered' }, token);
+  assert.equal(moved.status, 200);
+  assert.equal(moved.body.handledBy, owner.email, 'who moved it is recorded');
+
+  const after = (await call('/api/admin/submissions', { headers: auth(token) })).body.records.find((entry) => entry.id === record.id);
+  assert.equal(after.status, 'Answered');
+  assert.equal(after.handledBy, owner.email);
+  assert.equal(after.idea, 'Please reply to this one.', 'what the visitor sent is never rewritten');
+
+  assert.equal((await post('/api/admin/submissions', { id: record.id, status: 'Invented' }, token)).status, 400);
+  assert.equal((await post('/api/admin/submissions', { id: record.id, status: 'Closed' })).status, 401, 'anonymous callers cannot move anything');
+});
+
+/* ---------- Event images ---------- */
+
+test('an event takes a cover image and a captioned gallery', async () => {
+  const slug = `gallery-test-${Date.now()}`;
+  const created = await post('/api/admin/content', {
+    collection: 'events', slug, title: 'Gallery Test Event', venue: 'Aba', status_publish: 'Published',
+    photo: '/media/events/aiot-2026-group.jpg',
+    gallery: [{ src: '/media/events/aiot-2026-group.jpg', caption: 'The room', w: 1800, h: 1012 },
+              { src: '/media/events/aiot-2026-stage.jpg', caption: '', w: 1600, h: 900 }]
+  }, token);
+  assert.equal(created.status, 200);
+
+  const saved = (await call('/api/admin/content', { headers: auth(token) })).body.events.find((item) => item.slug === slug);
+  assert.equal(saved.photo, '/media/events/aiot-2026-group.jpg');
+  assert.equal(saved.gallery.length, 2);
+  assert.equal(saved.gallery[0].caption, 'The room');
+  assert.equal(saved.gallery[1].caption, '', 'an uncaptioned photo keeps an empty caption rather than an invented one');
+  assert.equal(saved.hasGallery, true, 'the recap flag follows the photos');
+
+  // Hotlinking someone else's image would put content on the page that we do not control.
+  const foreign = await post('/api/admin/content', {
+    collection: 'events', slug, title: 'Gallery Test Event',
+    gallery: [{ src: 'https://example.com/photo.jpg', caption: 'Elsewhere' }]
+  }, token);
+  assert.equal(foreign.status, 400);
+
+  const emptied = await post('/api/admin/content', { collection: 'events', slug, title: 'Gallery Test Event', gallery: [] }, token);
+  assert.equal(emptied.status, 200);
+  const cleared = (await call('/api/admin/content', { headers: auth(token) })).body.events.find((item) => item.slug === slug);
+  assert.equal(cleared.hasGallery, false, 'removing every photo turns the recap section back off');
+
+  await call('/api/admin/content', { method: 'DELETE', headers: auth(token), body: JSON.stringify({ collection: 'events', slug }) });
+});
+
 /* ---------- Email delivery ---------- */
 
 // Delivery is exercised against a stub provider rather than a real one: the point is that the app
@@ -435,13 +493,18 @@ test('server source and the data store are unreachable over HTTP', async () => {
   }
 });
 
-test('assets are compressed and cacheable', async () => {
+test('assets are compressed, and revalidate rather than going stale', async () => {
   const response = await fetch(`${base}/pages.css`, { headers: { 'Accept-Encoding': 'gzip' } });
   assert.equal(response.headers.get('content-encoding'), 'gzip');
-  assert.match(response.headers.get('cache-control'), /max-age/);
+  // no-cache means "ask before reusing", not "do not store". A max-age here would let a browser
+  // serve an hour-old admin.js without asking, which is how an admin change appears not to ship.
+  assert.equal(response.headers.get('cache-control'), 'no-cache');
   const etag = response.headers.get('etag');
   const repeat = await fetch(`${base}/pages.css`, { headers: { 'If-None-Match': etag } });
-  assert.equal(repeat.status, 304, 'a matching ETag should return 304');
+  assert.equal(repeat.status, 304, 'so the revalidation costs a 304 and no body');
+  // Uploaded media carries a content hash in its name, so it is still cached hard.
+  const media = await fetch(`${base}/media/events/aiot-2026-group.jpg`);
+  if (media.ok) assert.match(media.headers.get('cache-control'), /immutable/);
 });
 
 /* ---------- Rate limiting (last: it exhausts the per-IP budget) ---------- */

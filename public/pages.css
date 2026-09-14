@@ -593,6 +593,41 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 /* Honeypot: off-screen rather than display:none, which some bots skip. */
 .hp { height: 0; left: -9999px; overflow: hidden; position: absolute; width: 0; }
 
+/* Gallery editor ------------------------------------------------------ */
+.gallery-field { border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.gallery-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin: 16px 0 18px; }
+.gallery-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin: 0; overflow: hidden; padding: 0 0 10px; }
+.gallery-item img { aspect-ratio: 4 / 3; display: block; object-fit: cover; width: 100%; }
+.gallery-item input { background: var(--bg); border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; font-size: 12px; padding: 9px 11px; width: 100%; }
+.gallery-item input:focus { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.gallery-item-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 9px 11px 0; }
+.gallery-item-actions .text-button { font: 10px var(--mono); }
+.gallery-item-actions .text-button[disabled] { cursor: not-allowed; opacity: 0.4; }
+.gallery-item-actions .danger { color: var(--amber); }
+.gallery-field input[type="file"] { height: 0; opacity: 0; position: absolute; width: 0; }
+
+/* Submission worklist -------------------------------------------------
+   .records in styles.css lays each article out as a two-column flex row. A record here is a
+   header plus a body that opens underneath it, so the article becomes a block and the old
+   two-column row moves down onto .record-head. */
+.worklist article { display: block; padding: 0; }
+.record-head { align-items: start; background: none; border: 0; color: inherit; cursor: pointer; display: flex;
+  gap: 40px; justify-content: space-between; padding: 19px 0; text-align: left; width: 100%; }
+.record-head:hover h3 { color: var(--cyan); }
+.record-head:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.record-meta { max-width: 350px; text-align: right; }
+.record-meta .status-line { display: inline-flex; margin-bottom: 6px; }
+.record.open .record-head h3 { color: var(--cyan); }
+.record-body { border-top: 1px dashed var(--line); display: grid; gap: 22px; padding: 22px 0 26px; }
+.record-fields { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 0; }
+.record-fields dt { color: var(--ink-2); font: 10px var(--mono); letter-spacing: .05em; }
+.record-fields dd { font-size: 14px; line-height: 1.55; margin: 5px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.record-actions { align-items: end; display: flex; flex-wrap: wrap; gap: 16px; }
+.record-actions label { color: var(--ink-2); font: 11px var(--mono); }
+.record-actions select { background: var(--bg); border: 1px solid var(--line); border-radius: 3px; color: var(--ink);
+  display: block; margin-top: 7px; padding: 10px 12px; }
+.record-trail { font-size: 11px; margin: 0; }
+
 /* Outbox actions ------------------------------------------------------ */
 .outbox-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .composer { border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 14px; margin: 8px 0 34px; padding: 26px; }

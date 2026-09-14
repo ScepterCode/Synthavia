@@ -58,7 +58,7 @@ const seedSettings = [
 ];
 
 const collections = {
-  events: { fields: { title: 160, subtitle: 160, date: 60, startsAt: 20, venue: 160, format: 80, blurb: 600, badge: 60 }, states: ['Published', 'Draft'] },
+  events: { fields: { title: 160, subtitle: 160, date: 60, startsAt: 20, venue: 160, format: 80, blurb: 600, badge: 60, photo: 300 }, gallery: true, states: ['Published', 'Draft'] },
   posts: { fields: { title: 200, dek: 400, category: 60, date: 30, read: 20, author: 120, initials: 4 }, states: ['Published', 'In review', 'Draft'] },
   partners: { fields: { name: 160, note: 200, tier: 60, owner: 120 }, states: ['Confirmed', 'Unsigned', 'Verbal'], stateKey: 'agreement' },
   projects: { fields: { title: 160, status: 80, metric: 40, metricLabel: 200, result: 400 }, states: ['Published', 'Draft'] },
@@ -149,6 +149,8 @@ async function settings() {
   const saved = await store.settingsRaw();
   return seedSettings.map((entry) => ({ ...entry, value: saved[entry.key] ?? entry.value }));
 }
+// How far a submission has got. 'New' is the default every row starts at.
+const submissionStates = ['New', 'In progress', 'Answered', 'Closed'];
 const emailShaped = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
 async function settingsMap() { return Object.fromEntries((await settings()).map((entry) => [entry.key, entry.value])); }
 
@@ -171,6 +173,9 @@ const imageSignatures = [
 const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const storageBucket = process.env.SUPABASE_STORAGE_BUCKET || 'media';
+// Where an uploaded image legitimately lives, whichever backend saved it. Used to refuse gallery
+// entries that point somewhere we do not control.
+const storagePrefix = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/${storageBucket}/` : '/media/';
 const remoteStorage = Boolean(supabaseUrl && supabaseKey);
 
 async function saveImage(input) {
@@ -380,7 +385,10 @@ function sendFile(request, response, url, body, extension, mtime, status = 200) 
   const etag = `"${crypto.createHash('sha1').update(typeof body === 'string' ? body : body).digest('hex').slice(0, 16)}"`;
   const headers = {
     'Content-Type': types[extension],
-    'Cache-Control': isHtml ? 'no-cache' : immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600, must-revalidate',
+    // no-cache does not mean "do not cache" — it means "revalidate before reuse", which the ETag
+    // below answers with a 304 and no body. The previous max-age=3600 let a browser serve a stale
+    // admin.js for an hour without asking, so a change to the admin appeared not to have shipped.
+    'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
     ETag: etag,
     'Last-Modified': mtime.toUTCString(),
     'X-Content-Type-Options': 'nosniff'
@@ -475,8 +483,17 @@ async function handler(request, response) {
         return respond(response, 200, { ok: true });
       }
       if (url.pathname === '/api/admin/submissions') {
-        if (request.method === 'GET') return respond(response, 200, { records: await store.submissions() });
+        if (request.method === 'GET') return respond(response, 200, { records: await store.submissions(), states: submissionStates });
         if (request.method === 'DELETE') { await store.clearSubmissions(); return respond(response, 200, { ok: true }); }
+        // Only the handling state is writable. What the visitor sent stays exactly as it arrived.
+        if (request.method === 'POST') {
+          const input = await readBody(request);
+          const id = safeText(input.id, 40);
+          const status = safeText(input.status, 20);
+          if (!submissionStates.includes(status)) return respond(response, 400, { error: 'Unknown status.' });
+          await store.setSubmissionStatus(id, status, user.email);
+          return respond(response, 200, { id, status, handledBy: user.email });
+        }
       }
       if (url.pathname === '/api/admin/stats') {
         if (request.method === 'GET') return respond(response, 200, { metrics: await store.stats() });
@@ -514,6 +531,23 @@ async function handler(request, response) {
           const item = existing ? { ...existing } : { slug: '', body: [], chips: [], tags: [] };
           for (const [field, limit] of Object.entries(config.fields)) {
             if (input[field] !== undefined) item[field] = safeText(input[field], limit);
+          }
+          // A gallery is a list, not a scalar, so it is validated on its own terms: every photo needs
+          // a src that points at our own media, and a caption that says what it actually shows.
+          if (config.gallery && input.gallery !== undefined) {
+            if (!Array.isArray(input.gallery)) return respond(response, 400, { error: 'The gallery must be a list.' });
+            if (input.gallery.length > 40) return respond(response, 400, { error: 'Forty photos is the limit for one gallery.' });
+            const gallery = [];
+            for (const photo of input.gallery) {
+              const src = safeText(photo && photo.src, 300);
+              if (!src) continue;
+              if (!/^\/media\//.test(src) && !src.startsWith(storagePrefix)) return respond(response, 400, { error: 'Gallery images must be uploaded here, not linked from elsewhere.' });
+              gallery.push({ src, caption: safeText(photo.caption, 200), w: Number(photo.w) || 0, h: Number(photo.h) || 0 });
+            }
+            item.gallery = gallery;
+            // The public recap section keys off this, so it follows the photos rather than being
+            // set by hand and drifting out of step with them.
+            item.hasGallery = gallery.length > 0;
           }
           if (state) item[stateKey] = state;
           if (!item.title && !item.name) return respond(response, 400, { error: 'A title is required.' });

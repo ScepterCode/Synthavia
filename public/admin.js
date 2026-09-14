@@ -1,6 +1,6 @@
 // Unlisted route. The stat sign-off and the content tables here are what the public pages read from.
 const adminTokenKey = 'synthavia-admin-session';
-const state = { view: 'dashboard', filter: 'All', editing: null, records: [], metrics: [], content: null, settings: [], outbox: { messages: [], configured: false }, me: null, users: [], analytics: null,
+const state = { view: 'dashboard', filter: 'All', statusFilter: 'All', open: null, editing: null, records: [], metrics: [], content: null, settings: [], outbox: { messages: [], configured: false }, me: null, users: [], analytics: null,
   // The composer keeps its own draft so a re-render — a reload, a tab switch — never eats what has
   // been typed.
   compose: { to: '', subject: '', body: '' } };
@@ -26,7 +26,9 @@ const collections = {
     label: 'Events', action: 'New event', stateKey: 'status_publish', states: ['Published', 'Draft'],
     note: 'Publishing an event with a start date in the future turns on the public countdown. Drafts never appear on the site, so an undated edition stays invisible until the venue is booked.',
     columns: ['Event', 'Date', 'Venue', 'Status'],
-    fields: [['title', 'Title'], ['subtitle', 'Subtitle'], ['date', 'Date label'], ['startsAt', 'Start date (YYYY-MM-DD, blank if unset)'], ['venue', 'Venue'], ['format', 'Format'], ['badge', 'Badge'], ['blurb', 'Summary', 'textarea']],
+    fields: [['title', 'Title'], ['subtitle', 'Subtitle'], ['date', 'Date label'], ['startsAt', 'Start date (YYYY-MM-DD, blank if unset)'], ['venue', 'Venue'], ['format', 'Format'], ['badge', 'Badge'], ['blurb', 'Summary', 'textarea'], ['photo', 'Cover image', 'image']],
+    // Photos of the room, after the fact. Uploading any turns the public recap section on.
+    gallery: 'Recap gallery',
     cells: (item) => [[item.title, item.slug], item.date || 'Date not set', item.venue || 'Venue pending']
   },
   posts: {
@@ -127,6 +129,7 @@ async function load() {
     state.metrics = stats.metrics || [];
     state.content = content;
     state.settings = settings.settings || [];
+    state.submissionStates = submissions.states || ['New', 'In progress', 'Answered', 'Closed'];
     state.outbox = outbox;
     render();
   } catch { /* loginScreen already rendered */ }
@@ -173,17 +176,60 @@ function dashboard() {
       : '<div class="admin-empty"><span>◇</span><h3>Nothing waiting.</h3><p>Every figure is signed off and every item is published.</p></div>'}</section>`;
 }
 
+// Fields the visitor filled in, in the order they are worth reading. Anything not listed — the
+// bookkeeping the server adds — is shown afterwards, so a new form field can never go unseen.
+const submissionOrder = ['name', 'email', 'organisation', 'role', 'topic', 'track', 'interest', 'tier', 'orgType', 'website', 'support', 'outcome', 'idea', 'source', 'newsletter'];
+const submissionHidden = ['id', 'type', 'createdAt', 'status', 'handledBy', 'handledAt', 'company'];
+const statusTone = { New: 'warm', 'In progress': 'warm', Answered: 'ok', Closed: 'muted' };
+
+// The form field names are terse and a couple are misleading out of context — 'idea' is the whole
+// message on a contact form. Read them the way the person who wrote them would.
+const submissionLabels = {
+  idea: 'Message', outcome: 'What they want out of it', interest: 'What they are interested in',
+  support: 'Support they are asking for', orgType: 'Type of organisation', source: 'Came from',
+  track: 'Track', tier: 'Tier', newsletter: 'Newsletter opt-in', organisation: 'Organisation'
+};
+
+function submissionFields(record) {
+  const keys = [...submissionOrder.filter((key) => record[key] !== undefined && record[key] !== ''),
+    ...Object.keys(record).filter((key) => !submissionOrder.includes(key) && !submissionHidden.includes(key) && record[key] !== '' && record[key] !== undefined)];
+  return keys.map((key) => [submissionLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), String(record[key])]);
+}
+
 function submissions() {
   const types = ['All', 'Core signup', 'Program application', 'Contact message', 'Partner enquiry', 'Newsletter signup'];
-  const shown = state.filter === 'All' ? state.records : state.records.filter((record) => record.type === state.filter);
-  const detail = (record) => [record.track, record.interest, record.topic, record.organisation, record.support, record.outcome, record.idea].filter(Boolean).join(' · ');
-  return `<section class="panel-head"><div><p class="eyebrow">INCOMING</p><h2>Submissions</h2><p class="muted">Every public form writes here. Applications, partner enquiries and newsletter signups share one queue.</p></div>
+  const states = ['All', ...(state.submissionStates || [])];
+  const byType = state.filter === 'All' ? state.records : state.records.filter((record) => record.type === state.filter);
+  const shown = state.statusFilter === 'All' ? byType : byType.filter((record) => (record.status || 'New') === state.statusFilter);
+  const summary = (record) => [record.topic, record.track, record.organisation, record.idea, record.outcome, record.interest].filter(Boolean).join(' · ');
+  const outstanding = state.records.filter((record) => ['New', 'In progress'].includes(record.status || 'New')).length;
+
+  return `<section class="panel-head"><div><p class="eyebrow">INCOMING</p><h2>Submissions</h2>
+      <p class="muted">Every public form writes here, and the same message is emailed to the team inbox. Open a record to read it in full, reply, and mark how far it has got. ${outstanding} still ${outstanding === 1 ? 'needs' : 'need'} an answer.</p></div>
       <button class="button button-quiet" id="clearRecords" ${state.records.length ? '' : 'disabled'}>Clear server records</button></section>
     <div class="filter-bar">${types.map((type) => `<button class="chip" data-adminfilter="${esc(type)}" aria-pressed="${state.filter === type}">${esc(type)} <b>${type === 'All' ? state.records.length : state.records.filter((record) => record.type === type).length}</b></button>`).join('')}</div>
-    ${shown.length ? `<div class="records">${shown.map((record) => `<article><div><p class="tag">${esc(record.type)}</p><h3>${esc(record.name || record.organisation || 'Anonymous')}</h3><p>${esc(record.email || 'No email')} · ${when(record.createdAt)}</p></div>
-      <div><b>${esc(record.id)}</b><p>${esc(detail(record))}</p>
-      ${record.email ? `<button class="button button-quiet button-small" data-reply="${esc(record.id)}">Reply <span>→</span></button>` : ''}</div></article>`).join('')}</div>`
-    : `<div class="admin-empty"><span>◇</span><h3>Nothing in this queue.</h3><p>Use the public Join Core, application, partnership or newsletter forms to generate records here.</p></div>`}`;
+    <div class="filter-bar">${states.map((status) => `<button class="chip" data-statusfilter="${esc(status)}" aria-pressed="${state.statusFilter === status}">${esc(status)} <b>${status === 'All' ? state.records.length : state.records.filter((record) => (record.status || 'New') === status).length}</b></button>`).join('')}</div>
+    ${shown.length ? `<div class="records worklist">${shown.map((record) => {
+      const status = record.status || 'New';
+      const isOpen = state.open === record.id;
+      return `<article class="record${isOpen ? ' open' : ''}">
+        <button class="record-head" data-open="${esc(record.id)}" aria-expanded="${isOpen}">
+          <div><p class="tag">${esc(record.type)}</p><h3>${esc(record.name || record.organisation || 'Anonymous')}</h3>
+            <p>${esc(record.email || 'No email')} · ${when(record.createdAt)}</p></div>
+          <div class="record-meta"><span class="status-line"><span class="dot tone-${statusTone[status] || 'muted'}"></span>${esc(status)}</span>
+            <b>${esc(record.id)}</b><p>${esc(summary(record))}</p></div>
+        </button>
+        ${isOpen ? `<div class="record-body">
+          <dl class="record-fields">${submissionFields(record).map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
+          <div class="record-actions">
+            <label>Status<select data-status-for="${esc(record.id)}">${(state.submissionStates || []).map((option) => `<option${status === option ? ' selected' : ''}>${esc(option)}</option>`).join('')}</select></label>
+            ${record.email ? `<button class="button button-small" data-reply="${esc(record.id)}">Reply by email <span>→</span></button>` : '<p class="muted">No email address — this one cannot be replied to.</p>'}
+          </div>
+          ${record.handledBy ? `<p class="muted record-trail">Last moved to <b>${esc(status)}</b> by ${esc(record.handledBy)} · ${when(record.handledAt)}</p>` : ''}
+        </div>` : ''}
+      </article>`;
+    }).join('')}</div>`
+    : `<div class="admin-empty"><span>◇</span><h3>Nothing matches this filter.</h3><p>${state.records.length ? 'Clear the filters above to see the rest of the queue.' : 'Use the public Join Core, application, partnership or newsletter forms to generate records here.'}</p></div>`}`;
 }
 
 function statsView() {
@@ -221,6 +267,20 @@ function editor(key, item) {
         <input type="hidden" name="${field}" value="${value(field)}" /></div>`;
       return `<label>${esc(label)}<input name="${field}" value="${value(field)}" /></label>`;
     }).join('')}
+    ${config.gallery ? `<div class="gallery-field wide">
+      <span class="image-label">${esc(config.gallery)}</span>
+      <p class="image-note">Caption every photo with what it actually shows. An uncaptioned photo is published with no caption rather than an invented one, and the recap section only appears once there is at least one.</p>
+      <div class="gallery-grid">${(state.gallery || []).map((photo, index) => `<figure class="gallery-item">
+        <img src="${esc(photo.src)}" alt="" />
+        <input data-caption-index="${index}" value="${esc(photo.caption || '')}" placeholder="What this photo shows" maxlength="200" />
+        <div class="gallery-item-actions">
+          <button class="text-button" type="button" data-gallery-move="${index}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>← Earlier</button>
+          <button class="text-button" type="button" data-gallery-move="${index}" data-direction="1" ${index === (state.gallery || []).length - 1 ? 'disabled' : ''}>Later →</button>
+          <button class="text-button danger" type="button" data-gallery-remove="${index}">Remove</button>
+        </div></figure>`).join('') || '<p class="muted">No photos yet.</p>'}</div>
+      <input type="file" accept="image/png,image/jpeg,image/webp" multiple id="galleryFiles" data-gallery-add />
+      <label class="button button-quiet" for="galleryFiles">Add photos <span>↑</span></label>
+    </div>` : ''}
     <label>Status<select name="${config.stateKey}">${config.states.map((option) => `<option${(item || {})[config.stateKey] === option ? ' selected' : ''}>${esc(option)}</option>`).join('')}</select></label>
     <div class="editor-actions">
       <button class="button" type="submit">${isNew ? 'Create' : 'Save changes'} <span>→</span></button>
@@ -353,6 +413,24 @@ function render() {
     event.target.disabled = false;
     load();
   });
+  main.querySelectorAll('[data-status-for]').forEach((select) => select.addEventListener('change', async () => {
+    const id = select.dataset.statusFor;
+    const previous = state.records.find((record) => record.id === id)?.status;
+    select.disabled = true;
+    try {
+      const result = await api('/api/admin/submissions', { method: 'POST', body: JSON.stringify({ id, status: select.value }) });
+      const record = state.records.find((entry) => entry.id === id);
+      if (record) { record.status = result.status; record.handledBy = result.handledBy; record.handledAt = new Date().toISOString(); }
+      render();
+    } catch (error) {
+      // Put the control back where it was: showing a state the server did not accept would be
+      // worse than the failure itself.
+      select.value = previous || 'New';
+      select.disabled = false;
+      window.SynthaviaApp?.showToast(error.message);
+    }
+  }));
+
   // Typing is kept in state so that a reload triggered by another action cannot discard a draft.
   document.querySelector('#composeForm')?.addEventListener('input', (event) => {
     if (event.target.name) state.compose[event.target.name] = event.target.value;
@@ -413,11 +491,37 @@ main.addEventListener('click', async (event) => {
   if (view) { state.view = view.dataset.view; state.filter = 'All'; state.editing = null; return render(); }
   const filter = event.target.closest('[data-adminfilter]');
   if (filter) { state.filter = filter.dataset.adminfilter; return render(); }
+  const statusFilter = event.target.closest('[data-statusfilter]');
+  if (statusFilter) { state.statusFilter = statusFilter.dataset.statusfilter; return render(); }
+  // Clicking a record opens it; clicking it again closes it. One open at a time keeps the
+  // queue readable rather than turning into a wall of expanded messages.
+  const open = event.target.closest('[data-open]');
+  if (open) { state.open = state.open === open.dataset.open ? null : open.dataset.open; return render(); }
   const edit = event.target.closest('[data-edit]');
-  if (edit) { state.editing = { key: edit.dataset.edit, slug: edit.dataset.slug }; return render(); }
+  if (edit) {
+    state.editing = { key: edit.dataset.edit, slug: edit.dataset.slug };
+    // The gallery is edited as a draft and only reaches the server when the form is saved, so a
+    // half-finished set of photos never becomes the published one.
+    const item = (state.content?.[edit.dataset.edit] || []).find((entry) => entry.slug === edit.dataset.slug);
+    state.gallery = (item?.gallery || []).map((photo) => ({ ...photo }));
+    return render();
+  }
   const create = event.target.closest('[data-new]');
-  if (create) { state.editing = { key: create.dataset.new, slug: '' }; return render(); }
-  if (event.target.closest('[data-cancel]')) { state.editing = null; return render(); }
+  if (create) { state.editing = { key: create.dataset.new, slug: '' }; state.gallery = []; return render(); }
+  if (event.target.closest('[data-cancel]')) { state.editing = null; state.gallery = []; return render(); }
+  const galleryRemove = event.target.closest('[data-gallery-remove]');
+  if (galleryRemove) {
+    state.gallery.splice(Number(galleryRemove.dataset.galleryRemove), 1);
+    return render();
+  }
+  const galleryMove = event.target.closest('[data-gallery-move]');
+  if (galleryMove) {
+    const from = Number(galleryMove.dataset.galleryMove);
+    const to = from + Number(galleryMove.dataset.direction);
+    if (to < 0 || to >= state.gallery.length) return;
+    [state.gallery[from], state.gallery[to]] = [state.gallery[to], state.gallery[from]];
+    return render();
+  }
   const clear = event.target.closest('[data-clear-image]');
   if (clear) {
     const form = clear.closest('[data-editor]');
@@ -464,7 +568,7 @@ function downscale(file, max = 900) {
         canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
         // PNG keeps transparency; everything else is smaller as JPEG.
         const asPng = file.type === 'image/png';
-        resolve(canvas.toDataURL(asPng ? 'image/png' : 'image/jpeg', asPng ? undefined : 0.86));
+        resolve({ data: canvas.toDataURL(asPng ? 'image/png' : 'image/jpeg', asPng ? undefined : 0.86), width: canvas.width, height: canvas.height });
       };
       image.src = reader.result;
     };
@@ -472,7 +576,39 @@ function downscale(file, max = 900) {
   });
 }
 
+main.addEventListener('input', (event) => {
+  const caption = event.target.closest('[data-caption-index]');
+  // Held in state rather than read at save time, so re-rendering the grid cannot lose a caption.
+  if (caption) state.gallery[Number(caption.dataset.captionIndex)].caption = caption.value;
+});
+
 main.addEventListener('change', async (event) => {
+  const galleryInput = event.target.closest('[data-gallery-add]');
+  if (galleryInput && galleryInput.files?.length) {
+    const form = galleryInput.closest('[data-editor]');
+    const note = form.querySelector('.form-note');
+    const files = [...galleryInput.files];
+    const failures = [];
+    let done = 0;
+    for (const file of files) {
+      note.textContent = `Uploading ${done + 1} of ${files.length}…`;
+      try {
+        // Gallery photos are shown larger than a portrait, so they keep more pixels than the 900px
+        // used for a face.
+        const image = await downscale(file, 1600);
+        const result = await api('/api/admin/media', { method: 'POST', body: JSON.stringify({ name: file.name.replace(/\.[^.]+$/, ''), data: image.data }) });
+        state.gallery.push({ src: result.url, caption: '', w: image.width, h: image.height });
+        done += 1;
+      } catch (error) {
+        failures.push(`${file.name}: ${error.message || 'upload failed'}`);
+      }
+    }
+    galleryInput.value = '';
+    render();
+    const report = document.querySelector('.content-editor .form-note');
+    if (report) report.textContent = [done ? `${done} photo${done === 1 ? '' : 's'} added. Save to publish them.` : '', ...failures].filter(Boolean).join(' · ');
+    return;
+  }
   const input = event.target.closest('[data-image-for]');
   if (!input || !input.files?.length) return;
   const field = input.dataset.imageFor;
@@ -481,8 +617,8 @@ main.addEventListener('change', async (event) => {
   const preview = form.querySelector('.image-preview');
   note.textContent = 'Uploading…';
   try {
-    const data = await downscale(input.files[0]);
-    const result = await api('/api/admin/media', { method: 'POST', body: JSON.stringify({ name: input.files[0].name.replace(/\.[^.]+$/, ''), data }) });
+    const image = await downscale(input.files[0]);
+    const result = await api('/api/admin/media', { method: 'POST', body: JSON.stringify({ name: input.files[0].name.replace(/\.[^.]+$/, ''), data: image.data }) });
     form.querySelector(`input[type="hidden"][name="${field}"]`).value = result.url;
     preview.innerHTML = `<img src="${result.url}" alt="" />`;
     note.textContent = `Uploaded (${Math.round(result.bytes / 1024)} KB). Save to keep it.`;
@@ -533,6 +669,8 @@ main.addEventListener('submit', async (event) => {
   const note = editorForm.querySelector('.form-note');
   const payload = { collection: editorForm.dataset.editor, slug: editorForm.dataset.slug };
   new FormData(editorForm).forEach((value, key) => { if (key !== 'slug' || !payload.slug) payload[key] = value; });
+  // FormData cannot carry a list, so the gallery draft is attached directly.
+  if (collections[editorForm.dataset.editor]?.gallery) payload.gallery = state.gallery || [];
   try {
     await api('/api/admin/content', { method: 'POST', body: JSON.stringify(payload) });
     state.editing = null;
