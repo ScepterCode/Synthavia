@@ -52,6 +52,9 @@ const contactEmail = 'synthaviacore@gmail.com';
 const seedSettings = [
   { key: 'whatsapp', label: 'WhatsApp community room', hint: 'Invite link — https://chat.whatsapp.com/…', value: 'https://chat.whatsapp.com/FBcrmW1Gmha6stoOnTPK1s', url: true },
   { key: 'github', label: 'GitHub organisation', hint: 'Leave blank while access is by manual invite — an empty value hides the link rather than publishing a dead one', value: '', url: true },
+  { key: 'linkedin', label: 'LinkedIn page', hint: 'https://www.linkedin.com/company/…', value: 'https://www.linkedin.com/company/synthavia-ai', url: true },
+  { key: 'facebook', label: 'Facebook page', hint: 'https://www.facebook.com/…', value: 'https://www.facebook.com/synthavia', url: true },
+  { key: 'youtube', label: 'YouTube channel', hint: 'https://www.youtube.com/@…', value: 'https://www.youtube.com/@synthavia', url: true },
   { key: 'teamEmail', label: 'General inbox', hint: 'Where contact messages are notified', value: contactEmail },
   { key: 'programsEmail', label: 'Programs inbox', hint: 'Applications and Core signups', value: contactEmail },
   { key: 'partnersEmail', label: 'Partnerships inbox', hint: 'Partner enquiries', value: contactEmail }
@@ -151,6 +154,9 @@ async function settings() {
   const saved = await store.settingsRaw();
   return seedSettings.map((entry) => ({ ...entry, value: saved[entry.key] ?? entry.value }));
 }
+// Public profiles, in the order they are shown. A blank setting drops out everywhere at once.
+const socialProfiles = [['linkedin', 'LinkedIn'], ['facebook', 'Facebook'], ['youtube', 'YouTube']];
+
 // How far a submission has got. 'New' is the default every row starts at.
 const submissionStates = ['New', 'In progress', 'Answered', 'Closed'];
 const emailShaped = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
@@ -274,13 +280,15 @@ function legacyTarget(url) {
 
 /* ---------- Share tags ---------- */
 
-async function shareTags(request, url, route) {
+async function shareTags(request, url, route, links = {}) {
   const base = origin(request);
   const site = 'Synthavia AI';
   let title = 'Synthavia AI — From Abia, for Africa';
   let description = "Building Africa's AI future from Abia. We train the talent, run the research, and ship AI that works for African realities.";
   let type = 'website';
   let schema = { '@context': 'https://schema.org', '@type': 'Organization', name: site, url: base, description, address: { '@type': 'PostalAddress', streetAddress: '44b Aba Owerri Road', addressLocality: 'Aba', addressRegion: 'Abia State', addressCountry: 'NG' }, email: contactEmail, foundingDate: '2025' };
+  const sameAs = socialProfiles.map(([key]) => links[key]).filter(Boolean);
+  if (sameAs.length) schema.sameAs = sameAs;
 
   if (route && route.page) {
     const published = await publicContent();
@@ -362,9 +370,17 @@ async function sendPage(request, response, url, route, status = 200) {
   const file = path.join(viewsDir, route.file);
   if (!fs.existsSync(file)) return respond(response, 404, { error: 'Not found.' });
   let body = fs.readFileSync(file, 'utf8');
+  // Rendered into the markup rather than fetched by the browser: a crawler, or a visitor on a slow
+  // connection, sees the links without waiting on a script.
+  const links = route.file === 'admin.html' ? {} : await settingsMap();
+  const social = socialProfiles.filter(([key]) => links[key]);
+  if (social.length) {
+    body = body.replace('</footer>', `<nav class="footer-social" aria-label="Synthavia elsewhere">${social
+      .map(([key, label]) => `<a href="${escapeXml(links[key])}" target="_blank" rel="noopener noreferrer me">${label} <span aria-hidden="true">↗</span></a>`).join('')}</nav></footer>`);
+  }
   // The admin is a private tool and the 404 is not content: neither gets share tags or a canonical.
   if (route.file !== 'admin.html' && route.file !== '404.html') {
-    const share = await shareTags(request, url, route);
+    const share = await shareTags(request, url, route, links);
     body = body
       .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(share.title)}</title>`)
       .replace(/<meta name="description" content="[^"]*" \/>/, `<meta name="description" content="${escapeXml(share.description)}" />`)

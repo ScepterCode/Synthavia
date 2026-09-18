@@ -461,6 +461,11 @@ async function fillChannels() {
     if (settings.whatsapp) rows.push(['Community', `<a href="${esc(settings.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp room ↗</a>`]);
     // GitHub access is granted by hand, so there is no self-serve link to publish.
     rows.push(['GitHub', 'By invite — ask in the WhatsApp room']);
+    for (const [key, label] of [['linkedin', 'LinkedIn'], ['facebook', 'Facebook'], ['youtube', 'YouTube']]) {
+      // The handle, not the network's name again: the label column already says which network.
+      const handle = settings[key] ? decodeURIComponent(new URL(settings[key]).pathname.replace(/\/+$/, '').split('/').pop()) : '';
+      if (settings[key]) rows.push([label, `<a href="${esc(settings[key])}" target="_blank" rel="noopener noreferrer">${esc(handle || label)} ↗</a>`]);
+    }
     list.innerHTML = rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd>${value}</dd></div>`).join('')
       || '<div><dt>Inboxes</dt><dd>Not published yet</dd></div>';
   } catch { list.innerHTML = '<div><dt>Inboxes</dt><dd>Unavailable</dd></div>'; }

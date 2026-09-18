@@ -637,6 +637,12 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 .ground-card h3 { font-size: 26px; margin: 8px 0 12px; }
 .ground-card p { color: var(--ink-2); font-size: 13px; margin: 0; }
 
+/* Footer profiles ------------------------------------------------------ */
+.footer-social { display: flex; flex-wrap: wrap; gap: 18px; }
+.footer-social a { color: var(--ink-2); font: 11px var(--mono); letter-spacing: .04em; }
+.footer-social a:hover, .footer-social a:focus-visible { color: var(--cyan); }
+@media (max-width: 800px) { footer { flex-wrap: wrap; } .footer-social { order: 3; width: 100%; } }
+
 /* Gallery editor ------------------------------------------------------ */
 .gallery-field { border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
 .gallery-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin: 16px 0 18px; }

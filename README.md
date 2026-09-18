@@ -185,6 +185,8 @@ The delivery path is covered by a test that runs the app against a stub provider
 
 The join flow's third step hands new members into the WhatsApp and GitHub rooms. Those links live in the admin under **Community links**, not in the code. Leave one blank and the flow says the invite is coming by email rather than showing a dead link — the same rule as everywhere else on the site.
 
+**Public profiles** — LinkedIn, Facebook, YouTube — are settings in the same panel. The server renders them into the footer of every public page and into the Organization structured data as `sameAs`, which is how search engines connect those profiles to this site. The contact page lists them with the other channels. Blank a setting and the link disappears from all three places at once.
+
 GitHub access is granted by hand, so that setting is deliberately empty: the contact page says access is by invite instead of publishing a link that would not let anyone in. Fill it in if the organisation is ever opened up.
 
 ## Sharing and search

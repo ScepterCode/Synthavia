@@ -287,6 +287,23 @@ test('a commercial enquiry records which service it is about', async () => {
   assert.ok(topics.includes('Enterprise & business AI'), 'the commercial topic is published');
 });
 
+test('public profiles appear in the footer and structured data, and vanish when blanked', async () => {
+  const save = (values) => post('/api/admin/settings', values, token);
+  assert.equal((await save({ linkedin: 'https://www.linkedin.com/company/synthavia-ai', youtube: 'https://www.youtube.com/@synthavia', facebook: '' })).status, 200);
+
+  const home = (await call('/')).body;
+  assert.match(home, /class="footer-social"/, 'the footer carries the profiles');
+  assert.match(home, /href="https:\/\/www.linkedin.com\/company\/synthavia-ai"/);
+  assert.ok(!home.includes('facebook.com'), 'a blank profile is not linked anywhere');
+  const schema = JSON.parse(home.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  assert.deepEqual(schema.sameAs, ['https://www.linkedin.com/company/synthavia-ai', 'https://www.youtube.com/@synthavia'],
+    'sameAs tells search engines which profiles belong to this organisation');
+
+  assert.ok((await call('/enterprise')).body.includes('footer-social'), 'every page, not just the home page');
+  assert.ok(!(await call('/admin')).body.includes('footer-social'), 'but not the admin');
+  assert.equal((await save({ youtube: 'http://youtube.com/@synthavia' })).status, 400, 'profiles must be https');
+});
+
 /* ---------- Submission workflow ---------- */
 
 test('a submission carries a handling state that only an admin can move', async () => {
