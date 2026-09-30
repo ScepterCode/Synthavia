@@ -18,7 +18,7 @@ test suite.
 | --- | --- |
 | `/` | Home — hero (EN/PCM/IG), signed-off stats bar, ecosystem, case study, programs, events, partners, blog strip, contact |
 | `/enterprise` | Enterprise & Business AI — corporate training, SME copilots, custom engineering. Services are an admin-editable collection; the proof row reads the signed-off stats, so a claim here can never outrun the Impact grid |
-| `/team` | About & team — profiles with photos, managed in the admin |
+| `/team` | About — vision and mission, then team profiles with photos, managed in the admin |
 | `/core` | Community programs and cadence |
 | `/lab` | Filterable project index |
 | `/lab/<slug>` | Case study: problem, approach, outcome, metrics with sources, what we cannot claim yet |

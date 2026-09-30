@@ -287,6 +287,22 @@ test('a commercial enquiry records which service it is about', async () => {
   assert.ok(topics.includes('Enterprise & business AI'), 'the commercial topic is published');
 });
 
+test('the home contact form offers the same topics as /contact, enterprise included', async () => {
+  // The script replaces these options from the content store, but they are what a visitor sees
+  // first — and what is sent if the script never runs — so they must match the published labels.
+  const page = (await call('/')).body;
+  const select = page.match(/<select name="topic" id="homeTopic">([\s\S]*?)<\/select>/);
+  assert.ok(select, 'the home form has a topic picker');
+  const offered = [...select[1].matchAll(/<option>([^<]*)<\/option>/g)].map((match) => match[1].replace(/&amp;/g, '&'));
+  const published = (await call('/api/content')).body.topics.map((item) => item.label);
+  assert.deepEqual(offered, published, 'the home form and /contact must list the same topics');
+  assert.equal(offered[0], 'Enterprise & business AI', 'the commercial topic comes first, as it does on /contact');
+
+  // On a phone the sticky bar is the most visible action on the page; it leads with the same offer as the hero.
+  const bar = page.match(/<div class="mobile-cta"[\s\S]*?<\/div>/)[0];
+  assert.match(bar, /href="\/contact\?topic=Enterprise%20%26%20business%20AI"/);
+});
+
 test('public profiles appear in the footer and structured data, and vanish when blanked', async () => {
   const save = (values) => post('/api/admin/settings', values, token);
   assert.equal((await save({ linkedin: 'https://www.linkedin.com/company/synthavia-ai', youtube: 'https://www.youtube.com/@synthavia', facebook: '' })).status, 200);

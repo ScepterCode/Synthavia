@@ -637,6 +637,37 @@ body.light .ds-mono-mark img.brand-mark { filter: grayscale(1) brightness(0.35);
 .ground-card h3 { font-size: 26px; margin: 8px 0 12px; }
 .ground-card p { color: var(--ink-2); font-size: 13px; margin: 0; }
 
+/* About: vision and mission ------------------------------------------- */
+.purpose { border-bottom: 1px solid var(--line); display: grid; gap: clamp(40px, 6vw, 72px); }
+.purpose-block { display: grid; gap: 18px; grid-template-columns: minmax(140px, .3fr) 1fr; }
+.purpose-block .eyebrow { margin: 10px 0 0; }
+.purpose-vision { font: clamp(28px, 3.6vw, 50px) / 1.08 var(--display); letter-spacing: -.035em; margin: 0; max-width: 22ch; }
+.purpose-vision em { color: var(--cyan); font-style: normal; }
+.purpose-mission { color: var(--ink-2); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.6; margin: 0; max-width: 60ch; }
+@media (max-width: 720px) { .purpose-block { grid-template-columns: 1fr; gap: 10px; } }
+
+/* Sections the page script decides to show — the Impact list, the home service picker. */
+[hidden] { display: none !important; }
+
+.engagement-steps { border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid;
+  grid-template-columns: repeat(4, 1fr); list-style: none; margin: 0; padding: 0; }
+.engagement-steps li { border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 28px 26px 32px; }
+.engagement-steps li:last-child { border-right: 0; }
+.engagement-steps span, .engagement-steps small { color: var(--cyan); font: 10px var(--mono); letter-spacing: .05em; }
+.engagement-steps h3 { font-size: 24px; margin: 36px 0 12px; }
+.engagement-steps p { color: var(--ink-2); flex: 1; font-size: 13px; margin: 0 0 22px; }
+@media (max-width: 1000px) {
+  .engagement-steps { grid-template-columns: 1fr 1fr; }
+  .engagement-steps li:nth-child(2) { border-right: 0; }
+  .engagement-steps li:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 600px) {
+  .engagement-steps { grid-template-columns: 1fr; }
+  .engagement-steps li { border-bottom: 1px solid var(--line); border-right: 0; }
+  .engagement-steps li:last-child { border-bottom: 0; }
+  .engagement-steps h3 { margin-top: 18px; }
+}
+
 /* Footer profiles ------------------------------------------------------ */
 .footer-social { display: flex; flex-wrap: wrap; gap: 18px; }
 .footer-social a { color: var(--ink-2); font: 11px var(--mono); letter-spacing: .04em; }

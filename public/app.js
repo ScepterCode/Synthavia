@@ -209,6 +209,13 @@ document.addEventListener('submit', async (event) => {
 
 /* ---------- Signed-off public figures ---------- */
 
+// Several home sections read the published content; one request serves them all.
+let contentRequest;
+function publicContent() {
+  contentRequest ||= fetch('/api/content').then((response) => response.json());
+  return contentRequest;
+}
+
 async function renderStats() {
   const bar = document.querySelector('#statsBar');
   const grid = document.querySelector('#impactGrid');
@@ -216,8 +223,8 @@ async function renderStats() {
   try {
     const response = await fetch('/api/stats');
     const { metrics } = await response.json();
-    // The top strip carries only what is proven; the impact grid shows the full accounting,
-    // including what is still being audited and why.
+    // The top strip carries only what is proven; the impact grid lists only what is still in audit,
+    // so no signed-off number is shown twice and no pending one is hidden.
     if (bar) {
       const proven = metrics.filter((metric) => metric.signedOff);
       bar.innerHTML = proven.length
@@ -225,13 +232,14 @@ async function renderStats() {
         : '<article class="pending"><b>—</b><span>No figure is signed off yet</span><small>Numbers appear here once an owner signs them off</small></article>';
     }
     if (grid) {
-      grid.innerHTML = metrics.map((metric) => `<article${metric.signedOff ? '' : ' class="pending"'}><b>${metric.signedOff ? metric.value : '—'}</b><span>${metric.label}</span>
-        <small>${metric.signedOff ? metric.source : `${metric.source} · audit in progress`}</small></article>`).join('');
+      const pending = metrics.filter((metric) => !metric.signedOff);
+      grid.innerHTML = pending.map((metric) => `<article class="pending"><b>—</b><span>${metric.label}</span>
+        <small>${metric.source} · audit in progress</small></article>`).join('');
+      grid.closest('section').hidden = !pending.length;
     }
   } catch {
     const message = '<article class="pending"><b>—</b><span>Figures unavailable</span><small>The stats service is not reachable</small></article>';
     if (bar) bar.innerHTML = message;
-    if (grid) grid.innerHTML = message;
   }
 }
 renderStats();
@@ -241,7 +249,7 @@ async function renderTestimonials() {
   const target = document.querySelector('#testimonials');
   if (!target) return;
   try {
-    const { testimonials = [] } = await (await fetch('/api/content')).json();
+    const { testimonials = [] } = await publicContent();
     target.innerHTML = testimonials.length
       ? `<div class="quote-grid">${testimonials.map((item) => `<figure><blockquote>${item.quote}</blockquote><figcaption><b>${item.name}</b><span>${item.role}</span></figcaption></figure>`).join('')}</div>`
       : `<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>No quotes are up yet.</h3>
@@ -257,7 +265,7 @@ async function renderHomePartners() {
   const block = document.querySelector('#homePartners');
   if (!block) return;
   try {
-    const { partners = [] } = await (await fetch('/api/content')).json();
+    const { partners = [] } = await publicContent();
     if (!partners.length) return;
     block.classList.remove('partner-empty');
     block.classList.add('partner-empty', 'signed');
@@ -268,5 +276,61 @@ async function renderHomePartners() {
   } catch { /* the static empty state is the safe default */ }
 }
 renderHomePartners();
+
+// The enterprise offerings are an admin-edited collection, so the home page reads them rather than
+// repeating them: the static link stays as the fallback if the content cannot be reached.
+async function renderHomeServices() {
+  const list = document.querySelector('#homeServices');
+  if (!list) return;
+  try {
+    const { services = [] } = await publicContent();
+    if (!services.length) return;
+    const escape = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[c]);
+    list.innerHTML = services.map((service, index) => `<article class="service-card">
+      <p class="pillar-number">${String(index + 1).padStart(2, '0')}</p>
+      <p class="pillar-kicker">${escape(service.kicker)}</p>
+      <h3>${escape(service.title)}</h3>
+      <p>${escape(service.blurb)}</p>
+      <a class="button button-quiet" href="/contact?topic=${encodeURIComponent('Enterprise & business AI')}&service=${encodeURIComponent(service.title)}">${escape(service.action || 'Request a proposal')} <span>→</span></a>
+    </article>`).join('');
+    markCurrency(list);
+  } catch { /* the link to /enterprise is the safe default */ }
+}
+renderHomeServices();
+
+// The home form offers the same topics as /contact, read from the same list, so an enquiry from
+// either form reaches the same inbox under the same label. The service picker appears only for
+// the commercial topic, as it does on /contact.
+async function wireHomeContact() {
+  const topicSelect = document.querySelector('#homeTopic');
+  const serviceField = document.querySelector('#homeServiceField');
+  const serviceSelect = document.querySelector('#homeService');
+  if (!topicSelect) return;
+  const syncService = () => {
+    const commercial = /^Enterprise/.test(topicSelect.value);
+    serviceField.hidden = !commercial;
+    serviceSelect.disabled = !commercial;
+  };
+  topicSelect.addEventListener('change', syncService);
+  topicSelect.form.addEventListener('reset', () => setTimeout(syncService));
+  syncService();
+  try {
+    const { topics = [], services = [] } = await publicContent();
+    const option = (value, label = value) => {
+      const element = document.createElement('option');
+      element.value = value;
+      element.textContent = label;
+      return element;
+    };
+    if (topics.length) {
+      const chosen = topicSelect.value;
+      topicSelect.replaceChildren(...topics.map((topic) => option(topic.label)));
+      if (topics.some((topic) => topic.label === chosen)) topicSelect.value = chosen;
+    }
+    if (services.length) serviceSelect.replaceChildren(...services.map((service) => option(service.title)), option('Not sure yet', 'Not sure yet — help me scope it'));
+    syncService();
+  } catch { /* the static options match the published list */ }
+}
+wireHomeContact();
 
 window.SynthaviaApp = { showToast, translate, markCurrency };

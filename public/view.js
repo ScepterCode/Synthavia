@@ -150,7 +150,13 @@ function contact() {
 function team() {
   const people = content.team || [];
   return hero('ABOUT &amp; TEAM', 'The people<br />behind <em>the work.</em>', 'Synthavia is built by people who live with the conditions the work is designed for. Every project on this site has a named owner — these are them.') +
-    `<section class="index-section">
+    `<section class="index-section purpose" aria-label="Vision and mission">
+      <article class="purpose-block"><p class="eyebrow">OUR VISION</p>
+        <p class="purpose-vision">An Africa that builds its own intelligence: <em>AI made by our people, in our languages, for the realities we live in.</em></p></article>
+      <article class="purpose-block"><p class="eyebrow">OUR MISSION</p>
+        <p class="purpose-mission">Raising Africa's AI builders, Conducting open research with receipts, and Shipping AI that works on the phones, data and languages our communities actually have, for businesses, institutions and people across the continent.</p></article>
+    </section>
+    <section class="index-section">
       ${people.length ? `<div class="team-grid">${people.map((person) => `<article class="team-card">
         ${person.photo ? `<img src="${esc(person.photo)}" alt="${esc(person.name)}" loading="lazy" />` : slot(`Photo of ${person.name}`, '4 / 5')}
         <div class="team-copy">
@@ -358,6 +364,8 @@ function partners() {
 
 function enterprise() {
   const services = content.services || [];
+  // The reply time is the enterprise topic's own, so this page cannot promise faster than /contact does.
+  const desk = content.topics.find((item) => /^Enterprise/.test(item.label));
   return hero('ENTERPRISE & BUSINESS AI', 'AI that works<br /><em>where you work.</em>',
     'Synthavia partners with businesses, institutions and public sector bodies to deploy practical, localised AI solutions and upskill teams for the modern AI economy.') +
     `<section class="index-section">
@@ -375,6 +383,17 @@ function enterprise() {
       </article>`).join('')}</div>`
       : `<div class="empty-panel"><span>◌</span><div><p class="tag">NOTHING PUBLISHED YET</p><h3>The service list is empty.</h3>
         <p>Services are published from the admin. Nothing is listed here until someone publishes it.</p></div></div>`}
+    </section>
+
+    <section class="index-section">
+      <div class="section-head"><p class="eyebrow">HOW AN ENGAGEMENT WORKS</p><h2>Four steps,<br /><em>no surprises.</em></h2>
+        <p class="head-copy">What happens between your first message and the handover, and what you hold at the end of each step.</p></div>
+      <ol class="engagement-steps">
+        <li><span>01</span><h3>Discovery call</h3><p>We learn the problem, who it affects and the constraints you work under.${desk ? ` We reply to a first message within ${esc(desk.sla)}.` : ''}</p><small>YOU GET · AN HONEST FIT CHECK</small></li>
+        <li><span>02</span><h3>Scoped proposal</h3><p>A written scope: what we will do, what you will receive, the timeline and the cost. If we are not the right fit, we say so here.</p><small>YOU GET · A FIXED SCOPE IN WRITING</small></li>
+        <li><span>03</span><h3>Build or train</h3><p>Delivered in stages you can see, with one named owner on our side for the whole engagement.</p><small>YOU GET · WORK TO REVIEW AT EACH STAGE</small></li>
+        <li><span>04</span><h3>Handover</h3><p>Documentation, the working system or trained team, and support terms agreed in the proposal.</p><small>YOU GET · WHAT YOU NEED TO RUN IT</small></li>
+      </ol>
     </section>
 
     <section class="index-section">

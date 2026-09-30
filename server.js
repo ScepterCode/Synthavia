@@ -309,7 +309,7 @@ async function shareTags(request, url, route, links = {}) {
     } else {
       const pages = {
         enterprise: ['Enterprise AI services', 'Corporate AI training, SME copilots and custom AI engineering — built in Abia, for how African businesses actually operate.'],
-        team: ['About & team', 'The people behind Synthavia AI. Every project on the site has a named owner.'],
+        team: ['About & team', 'An Africa that builds its own intelligence: AI made by our people, in our languages, for the realities we live in. Our vision, mission and the people behind the work.'],
         core: ['Synthavia Core', 'Workshops, cohorts, mentorship and open-source projects across Abia. Core is free and it stays free.'],
         lab: ['Synthavia Lab', 'Open datasets, small models and tools for agriculture, education, African-language NLP and enterprise.'],
         programs: ['Synthavia Programs', 'Fellowship, Internship and Accelerator tracks that turn intent into a shipped artefact.'],
